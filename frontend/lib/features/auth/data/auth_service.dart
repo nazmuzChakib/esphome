@@ -56,8 +56,12 @@ class AuthService {
   }
 
   Future<void> signOut() async {
-    await _auth.signOut();
-    await GoogleSignIn().signOut();
+    try {
+      await _auth.signOut();
+    } catch (_) {}
+    try {
+      await GoogleSignIn().signOut();
+    } catch (_) {}
   }
 
   Future<void> _syncUserProfile(User user, String email, String defaultRole) async {

@@ -104,7 +104,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> logout() async {
     state = state.copyWith(isLoading: true);
-    await _authService.signOut();
+    try {
+      await _authService.signOut();
+    } catch (_) {}
     state = AuthState(isAuthenticated: false);
   }
 }
