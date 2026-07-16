@@ -945,7 +945,6 @@ class _NodePermissionGate extends ConsumerWidget {
           return child;
         }
 
-        final isDark = Theme.of(context).brightness == Brightness.dark;
         final isPending = status == NodePermissionStatus.pending;
 
         if (layout == 'list') {

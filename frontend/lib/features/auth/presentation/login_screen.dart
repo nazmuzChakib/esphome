@@ -300,10 +300,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                             'Login',
                                             style: GoogleFonts.outfit(
                                               fontSize: 16,
-                                               ),
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                           ),
-                                    ),
-                                  ),]
+                                  ),
                                 ),
                                 const SizedBox(height: 16),
                                 Row(
@@ -373,16 +373,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     ),
                                   ),
                                 ),
-                              ),
-                        ),
-                      )]
-                    ),
+                  ]),
+                            ),
+                          ),
+                    
                 ),
               ),
-            ),
-          ),
-        ],
-      ),
+        ]),
+        )),
+    ),
     );
   }
 }
