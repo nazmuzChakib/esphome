@@ -200,7 +200,7 @@ class UpdateDialog extends ConsumerWidget {
                   const SizedBox(height: 16),
                   // Content
                   Text(
-                    'A new version (v${updateState.latestVersion}) has been released on GitHub.',
+                    'A new version (v${updateState.latestVersion}) has been released.',
                     style: GoogleFonts.inter(
                       fontSize: 13.5,
                       color: isDark ? Colors.white70 : Colors.black87,
@@ -208,15 +208,6 @@ class UpdateDialog extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    'Matched ABI Architecture: ${updateState.matchedAbi}',
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: theme.primaryColor,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
 
                   // Markdown Release Notes
                   if (updateState.releaseNotes != null &&
@@ -290,7 +281,7 @@ class UpdateDialog extends ConsumerWidget {
                     ),
                   ] else if (updateState.localApkPath != null)
                     Text(
-                      'Update has already been downloaded and is cached. Click below to install.',
+                      'Update has already been downloaded. Click below to install.',
                       style: GoogleFonts.inter(
                         fontSize: 12.5,
                         color: Colors.green,
@@ -298,7 +289,7 @@ class UpdateDialog extends ConsumerWidget {
                     )
                   else
                     Text(
-                      'Press update to download split APK and show progress in the system notification tray.',
+                      'Press update to download.',
                       style: GoogleFonts.inter(
                         fontSize: 12.5,
                         color: isDark ? Colors.white54 : Colors.grey.shade600,

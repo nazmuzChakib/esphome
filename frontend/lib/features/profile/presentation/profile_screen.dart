@@ -252,8 +252,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color:
-                                Theme.of(context).primaryColor.withOpacity(0.5),
+                            color: Theme.of(
+                              context,
+                            ).primaryColor.withOpacity(0.5),
                             width: 2.5,
                           ),
                         ),
@@ -333,7 +334,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               return;
             }
             Navigator.pop(context);
-            await ref.read(authProvider.notifier).updateProfile(
+            await ref
+                .read(authProvider.notifier)
+                .updateProfile(
                   firstName: authState.firstName ?? '',
                   lastName: authState.lastName ?? '',
                   name: name,
@@ -767,14 +770,73 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                       : Colors.amber,
                                 ),
                               ),
-                              trailing: Icon(
-                                devStatus == 'approved'
-                                    ? Icons.check_circle_outline
-                                    : Icons.pending_outlined,
-                                color: devStatus == 'approved'
-                                    ? Colors.green
-                                    : Colors.amber,
-                                size: 18,
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    devStatus == 'approved'
+                                        ? Icons.check_circle_outline
+                                        : Icons.pending_outlined,
+                                    color: devStatus == 'approved'
+                                        ? Colors.green
+                                        : Colors.amber,
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.delete_outline_rounded,
+                                      size: 18,
+                                      color: Colors.redAccent,
+                                    ),
+                                    tooltip: 'Remove Device',
+                                    onPressed: () async {
+                                      final confirm = await showDialog<bool>(
+                                        context: context,
+                                        builder: (ctx) => AlertDialog(
+                                          backgroundColor: Colors.grey.shade900
+                                              .withOpacity(0.95),
+                                          title: Text(
+                                            'Remove Device',
+                                            style: GoogleFonts.outfit(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          content: Text(
+                                            'Are you sure you want to remove "$devName"?',
+                                            style: GoogleFonts.inter(
+                                              color: Colors.white70,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(ctx, false),
+                                              child: const Text('Cancel'),
+                                            ),
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(ctx, true),
+                                              style: TextButton.styleFrom(
+                                                foregroundColor:
+                                                    Colors.redAccent,
+                                              ),
+                                              child: const Text('Remove'),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                      if (confirm == true && email.isNotEmpty) {
+                                        await ref
+                                            .read(authServiceProvider)
+                                            .removeUserDevice(email, devId);
+                                        setState(() {});
+                                      }
+                                    },
+                                  ),
+                                ],
                               ),
                             );
                           },

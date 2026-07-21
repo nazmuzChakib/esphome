@@ -13,8 +13,11 @@ class LocalCacheService {
 
   final StreamController<void> _updateNotifier =
       StreamController<void>.broadcast();
+  final StreamController<Map<String, dynamic>> _payloadNotifier =
+      StreamController<Map<String, dynamic>>.broadcast();
 
   Stream<void> get onDataChanged => _updateNotifier.stream;
+  Stream<Map<String, dynamic>> get onPayloadReceived => _payloadNotifier.stream;
 
   /// Initialize Hive boxes if not already opened
   Future<void> init() async {
@@ -44,6 +47,11 @@ class LocalCacheService {
 
     // Notify listeners so UI re-renders with updated local cache
     _updateNotifier.add(null);
+    _payloadNotifier.add({
+      'mac': mac,
+      'pathType': pathType,
+      'payload': payload,
+    });
   }
 
   /// Save full nodes list into Hive cache

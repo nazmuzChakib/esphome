@@ -25,15 +25,18 @@ import 'package:firebase_database/firebase_database.dart';
 // ============================================================================
 
 import '../../../core/cache/cache_keys.dart';
+import '../../../core/network/connection_manager.dart';
 
 class NodesNotifier extends StateNotifier<List<Map<String, dynamic>>> {
-  Timer? _simulationTimer;
+  final ConnectionManager? _connectionManager;
   final Random _random = Random();
 
   late Box _rulesBox;
   bool _isInitialized = false;
 
-  NodesNotifier() : super(_getCachedNodesSync()) {
+  NodesNotifier({ConnectionManager? connectionManager})
+    : _connectionManager = connectionManager,
+      super(_getCachedNodesSync()) {
     _initNotifier();
   }
 
@@ -91,7 +94,6 @@ class NodesNotifier extends StateNotifier<List<Map<String, dynamic>>> {
   Future<void> _initNotifier() async {
     _rulesBox = await Hive.openBox('rules');
     _isInitialized = true;
-    _startSimulation();
 
     // Listen to local cache mutations to reactively update state and re-render UI
     Hive.box(CacheKeys.nodesBox).listenable().addListener(() {
@@ -163,16 +165,6 @@ class NodesNotifier extends StateNotifier<List<Map<String, dynamic>>> {
           }
         }
       } catch (_) {}
-    } else {
-      // If offline and cache is empty, inject mock data directly
-      if (state.isEmpty) {
-        final List<Map<String, dynamic>> initialList = [];
-        for (var node in _initialNodes) {
-          initialList.add(_safeConvertNode(node));
-        }
-        state = initialList;
-        await nodesBox.put('nodes_list', initialList);
-      }
     }
 
     // Set up Firebase Realtime Database synchronization stream listener
@@ -214,142 +206,120 @@ class NodesNotifier extends StateNotifier<List<Map<String, dynamic>>> {
         }
       });
     } catch (_) {}
+  }
 
-    // Check if both cache and firebase are empty to inject simulation nodes
-    if (state.isEmpty && hasInternet) {
-      Timer(const Duration(seconds: 4), () async {
-        try {
-          final snap = await FirebaseDatabase.instance
-              .ref('nodes')
-              .get()
-              .timeout(const Duration(seconds: 5));
-          if (!snap.exists || snap.value == null) {
-            final List<Map<String, dynamic>> initialList = [];
-            for (var node in _initialNodes) {
-              initialList.add(_safeConvertNode(node));
-            }
-            state = initialList;
-            await nodesBox.put('nodes_list', initialList);
-            await FirebaseDatabase.instance.ref('nodes').set(initialList);
-          }
-        } catch (_) {}
-      });
+  /// Real Payload Processor: Updates node configuration, states, or sensor telemetry from real hardware packets
+  Future<void> updateFromRealNodePayload({
+    required String mac,
+    required String pathType,
+    required dynamic payload,
+  }) async {
+    final cleanMac = mac.replaceAll(':', '').toUpperCase();
+    final List<Map<String, dynamic>> currentList = List.from(state);
+
+    int nodeIndex = currentList.indexWhere(
+      (n) =>
+          (n['mac'] as String?)?.replaceAll(':', '').toUpperCase() == cleanMac,
+    );
+
+    Map<String, dynamic> targetNode;
+    if (nodeIndex >= 0) {
+      targetNode = Map<String, dynamic>.from(currentList[nodeIndex]);
+    } else {
+      // Create new node entry from incoming real discovery/config packet
+      final mac4 = cleanMac.length >= 4
+          ? cleanMac.substring(cleanMac.length - 4)
+          : cleanMac;
+      targetNode = {
+        'name': 'ESP32 Node ($mac4)',
+        'mac': mac,
+        'mac4': mac4,
+        'ip': '',
+        'status': 'local',
+        'temp': 0.0,
+        'humi': 0.0,
+        'tempHistory': <double>[],
+        'sensors': <String>[],
+        'sensorReadings': <String, dynamic>{},
+        'loads': <Map<String, dynamic>>[],
+      };
+      currentList.add(targetNode);
+      nodeIndex = currentList.length - 1;
     }
+
+    if (payload is Map) {
+      final mapData = _deepConvertMap(payload);
+
+      if (pathType == 'config') {
+        if (mapData.containsKey('name')) {
+          targetNode['name'] = mapData['name'];
+        } else if (mapData.containsKey('ip')) {
+          targetNode['ip'] = mapData['ip'];
+        } else if (mapData.containsKey('status')) {
+          targetNode['status'] = mapData['status'];
+        } else if (mapData.containsKey('uptime')) {
+          targetNode['uptime'] = mapData['uptime'];
+        }
+      } else if (pathType == 'loads') {
+        if (mapData.containsKey('loads') && mapData['loads'] is List) {
+          targetNode['loads'] = List<Map<String, dynamic>>.from(
+            mapData['loads'],
+          );
+        }
+      } else if (pathType == 'states') {
+        final List<Map<String, dynamic>> loads =
+            List<Map<String, dynamic>>.from(
+              (targetNode['loads'] as List? ?? []).map(
+                (l) => Map<String, dynamic>.from(l as Map),
+              ),
+            );
+        mapData.forEach((key, val) {
+          final isStateOn = val == 'ON' || val == 1 || val == true;
+          for (var l in loads) {
+            if (l['load_id'] == key ||
+                l['load_name'] == key ||
+                l['name'] == key) {
+              l['state'] = isStateOn;
+            }
+          }
+        });
+        targetNode['loads'] = loads;
+      } else if (pathType == 'sensors') {
+        final double? tempVal = (mapData['temperature'] ?? mapData['temp'])
+            ?.toDouble();
+        final double? humiVal = (mapData['humidity'] ?? mapData['humi'])
+            ?.toDouble();
+
+        if (tempVal != null) {
+          targetNode['temp'] = tempVal;
+          final List<double> history = List<double>.from(
+            targetNode['tempHistory'] ?? [],
+          );
+          history.add(tempVal);
+          if (history.length > 10) history.removeAt(0);
+          targetNode['tempHistory'] = history;
+        }
+
+        if (humiVal != null) {
+          targetNode['humi'] = humiVal;
+        }
+
+        final Map<String, dynamic> readings = Map<String, dynamic>.from(
+          targetNode['sensorReadings'] ?? {},
+        );
+        mapData.forEach((k, v) {
+          readings[k] = v;
+        });
+        targetNode['sensorReadings'] = readings;
+      }
+    }
+
+    currentList[nodeIndex] = targetNode;
+    state = currentList;
+    _saveToCache();
   }
 
-  static final List<Map<String, dynamic>> _initialNodes = [
-    {
-      'name': 'Living Room Gateway',
-      'mac': 'AA:BB:CC:DD:01:02',
-      'mac4': '0102',
-      'ip': '192.168.1.50',
-      'status': 'local',
-      'temp': 24.5,
-      'humi': 55.0,
-      'tempHistory': [24.0, 24.2, 24.3, 24.4, 24.5],
-      'sensors': ['temperature', 'humidity'],
-      // sensorReadings: generic map for any sensor key — extended sensor support
-      'sensorReadings': {'temperature': 24.5, 'humidity': 55.0},
-      'loads': [
-        {
-          'load_id': '1001',
-          'load_name': 'Reading Room Light',
-          'load_gpio': 4,
-          'load_type': 0, // Light
-          'active_high': true,
-          'hasSwitch': true,
-          'isPushBtn': false,
-          'switch_gpio': 2,
-          'state': false,
-          'override': false,
-        },
-        {
-          'load_id': '1002',
-          'load_name': 'Fan Relay',
-          'load_gpio': 12,
-          'load_type': 1, // Fan
-          'active_high': true,
-          'hasSwitch': true,
-          'isPushBtn': false,
-          'switch_gpio': 16,
-          'state': false,
-          'override': false,
-        },
-      ],
-    },
-    {
-      'name': 'Kitchen Controller',
-      'mac': 'AA:BB:CC:DD:03:04',
-      'mac4': '0304',
-      'ip': '192.168.1.51',
-      'status': 'cloud',
-      'temp': 28.2,
-      'humi': 60.5,
-      'tempHistory': [27.5, 27.8, 28.0, 28.1, 28.2],
-      'sensors': ['temperature', 'humidity'],
-      'sensorReadings': {'temperature': 28.2, 'humidity': 60.5},
-      'loads': [
-        {
-          'load_id': '1003',
-          'load_name': 'Kitchen Light',
-          'load_gpio': 13,
-          'load_type': 0, // Light
-          'active_high': true,
-          'hasSwitch': true,
-          'isPushBtn': false,
-          'switch_gpio': 15,
-          'state': false,
-          'override': false,
-        },
-        {
-          'load_id': '1004',
-          'load_name': 'Exhaust Fan',
-          'load_gpio': 14,
-          'load_type': 1, // Fan
-          'active_high': true,
-          'hasSwitch': false,
-          'isPushBtn': false,
-          'switch_gpio': -1,
-          'state': false,
-          'override': false,
-        },
-      ],
-    },
-    {
-      'name': 'Bedroom Node',
-      'mac': 'AA:BB:CC:DD:05:06',
-      'mac4': '0506',
-      'ip': '192.168.1.52',
-      'status': 'offline',
-      'temp': 22.0,
-      'humi': 48.0,
-      'tempHistory': [22.0],
-      'sensors': [], // No sensors
-      'sensorReadings': {},
-      'loads': [
-        {
-          'load_id': '1005',
-          'load_name': 'AC Switch',
-          'load_gpio': 15,
-          'load_type': 2, // Power/Socket
-          'active_high': true,
-          'hasSwitch': true,
-          'isPushBtn': true,
-          'switch_gpio': 12,
-          'state': false,
-          'override': false,
-        },
-      ],
-    },
-  ];
-
-  void _startSimulation() {
-    _simulationTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-      _simulateSensorFluctuationAndRules();
-    });
-  }
-
-  void _simulateSensorFluctuationAndRules() {
+  void evaluateAutomationRules() {
     if (!_isInitialized) return;
 
     final List<Map<String, dynamic>> rules = [];
@@ -363,32 +333,14 @@ class NodesNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     }
 
     state = state.map((node) {
-      final List<String> sensors = List<String>.from(node['sensors']);
-      if (sensors.isEmpty) return node;
-
-      final double tempDelta = (_random.nextDouble() - 0.5) * 0.8;
-      final double humiDelta = (_random.nextDouble() - 0.5) * 1.5;
-
-      final double newTemp = double.parse(
-        (node['temp'] + tempDelta).toStringAsFixed(1),
-      );
-      final double newHumi = double.parse(
-        (node['humi'] + humiDelta).toStringAsFixed(1),
-      );
-
-      final List<double> history =
-          (node['tempHistory'] as List?)
-              ?.map((e) => (e as num).toDouble())
-              .toList() ??
-          <double>[];
-      history.add(newTemp);
-      if (history.length > 10) {
-        history.removeAt(0);
-      }
+      final double newTemp = (node['temp'] as num?)?.toDouble() ?? 0.0;
+      final double newHumi = (node['humi'] as num?)?.toDouble() ?? 0.0;
 
       final List<Map<String, dynamic>> updatedLoads =
           List<Map<String, dynamic>>.from(
-            (node['loads'] as List).map((l) => Map<String, dynamic>.from(l)),
+            (node['loads'] as List? ?? []).map(
+              (l) => Map<String, dynamic>.from(l as Map),
+            ),
           );
 
       for (var rule in rules) {
@@ -564,6 +516,11 @@ class NodesNotifier extends StateNotifier<List<Map<String, dynamic>>> {
         }
       }
 
+      final List<String> sensors = List<String>.from(node['sensors'] ?? []);
+      final List<double> history = List<double>.from(
+        (node['tempHistory'] as List?)?.map((e) => (e as num).toDouble()) ?? [],
+      );
+
       // Update sensorReadings map for extended sensor support
       final Map<String, dynamic> existingReadings =
           (node['sensorReadings'] is Map)
@@ -610,10 +567,14 @@ class NodesNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     } catch (_) {}
   }
 
-  void toggleLoadState(String mac, String loadId) {
+  void toggleLoadState(String mac, String loadId, {String? apiKey}) {
+    bool? targetState;
+    String ip = '';
+
     state = state.map((node) {
       if (node['mac'] != mac) return node;
 
+      ip = (node['ip'] as String?) ?? '';
       final List<Map<String, dynamic>> updatedLoads = (node['loads'] as List)
           .map((load) {
             final Map<String, dynamic> loadMap = Map<String, dynamic>.from(
@@ -622,6 +583,7 @@ class NodesNotifier extends StateNotifier<List<Map<String, dynamic>>> {
             if (loadMap['load_id'] == loadId) {
               loadMap['state'] = !loadMap['state'];
               loadMap['override'] = true;
+              targetState = loadMap['state'];
             }
             return loadMap;
           })
@@ -630,6 +592,21 @@ class NodesNotifier extends StateNotifier<List<Map<String, dynamic>>> {
       return {...node, 'loads': updatedLoads};
     }).toList();
     _saveToCache();
+
+    // Enforce sending real network command frame: WS Primary -> HTTP Fallback -> Offline Queue
+    if (targetState != null && _connectionManager != null) {
+      final payload = {
+        'path': 'states',
+        'states': {loadId: targetState == true ? 'ON' : 'OFF'},
+      };
+      _connectionManager.sendCommand(
+        mac: mac,
+        ip: ip,
+        payload: payload,
+        apiKey: apiKey,
+      );
+
+    }
   }
 
   bool addLoad({
@@ -868,15 +845,10 @@ class NodesNotifier extends StateNotifier<List<Map<String, dynamic>>> {
       'loads': minifiedLoads,
     };
   }
-
-  @override
-  void dispose() {
-    _simulationTimer?.cancel();
-    super.dispose();
-  }
 }
 
 final nodesProvider =
     StateNotifierProvider<NodesNotifier, List<Map<String, dynamic>>>((ref) {
-      return NodesNotifier();
+      final connectionManager = ref.watch(connectionManagerProvider);
+      return NodesNotifier(connectionManager: connectionManager);
     });

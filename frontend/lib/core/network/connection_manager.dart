@@ -23,9 +23,11 @@ class ConnectionManager {
   ConnectionManager(this._nodeSecurity, this._localCache);
 
   /// Ensure WebSocket connection to a specific ESP32 node
-  void connectNodeWebSocket(String mac, String ip, {String? apiKey}) {
-    if (ip.isEmpty) return;
-    if (_wsConnectedStatus[mac] == true) return;
+  Future<bool> connectNodeWebSocket(String mac, String ip, {String? apiKey}) async {
+    if (ip.isEmpty) return false;
+    if (_wsConnectedStatus[mac] == true && _wsChannels.containsKey(mac)) {
+      return true;
+    }
 
     try {
       final wsUrl = Uri.parse('ws://$ip:80/ws');
@@ -49,8 +51,10 @@ class ConnectionManager {
 
       // On successful WS connection, replay any pending offline commands for this node
       _flushOfflineQueueForNode(mac);
+      return true;
     } catch (_) {
       _closeWsSession(mac);
+      return false;
     }
   }
 
@@ -88,7 +92,7 @@ class ConnectionManager {
     }
   }
 
-  /// Send Command: Try WebSocket -> Fallback to HTTP -> Fallback to Offline Queue
+  /// Send Command: Try Primary WebSocket -> Secondary Local HTTP API -> Quaternary Offline Queue
   Future<bool> sendCommand({
     required String mac,
     required String ip,
@@ -101,17 +105,24 @@ class ConnectionManager {
       apiKey: apiKey,
     );
 
-    // 1. Try WebSocket Primary Connection
-    if (_wsConnectedStatus[mac] == true && _wsChannels.containsKey(mac)) {
-      try {
-        _wsChannels[mac]!.sink.add(frame);
-        return true;
-      } catch (_) {
-        _closeWsSession(mac);
+    // 1. Primary WebSocket Connection (Ensure connected first)
+    if (ip.isNotEmpty) {
+      if (_wsConnectedStatus[mac] != true || !_wsChannels.containsKey(mac)) {
+        await connectNodeWebSocket(mac, ip, apiKey: apiKey);
+        await Future.delayed(const Duration(milliseconds: 150));
+      }
+
+      if (_wsConnectedStatus[mac] == true && _wsChannels.containsKey(mac)) {
+        try {
+          _wsChannels[mac]!.sink.add(frame);
+          return true;
+        } catch (_) {
+          _closeWsSession(mac);
+        }
       }
     }
 
-    // 2. HTTP API Secondary Fallback Connection
+    // 2. Secondary Local HTTP API Fallback Connection
     if (ip.isNotEmpty) {
       final success = await _sendHttpFallback(ip: ip, frame: frame);
       if (success) return true;
@@ -128,6 +139,7 @@ class ConnectionManager {
 
     return false;
   }
+
 
   Future<bool> _sendHttpFallback({
     required String ip,

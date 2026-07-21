@@ -8,6 +8,7 @@ import '../../../core/widgets/glass_dialog.dart';
 import '../../../core/widgets/app_background.dart';
 import '../data/access_control_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import '../../../core/utils/device_info_helper.dart';
 
 // ─── Realtime pending requests StreamProvider ─────────────────────────────────
 final pendingRequestsStreamProvider =
@@ -30,6 +31,7 @@ class _AccessControlScreenState extends ConsumerState<AccessControlScreen>
   bool _isLoading = true;
   List<Map<String, dynamic>> _users = [];
   List<Map<String, dynamic>> _approvedNodes = [];
+  String _currentDeviceId = '';
 
   // Track already-seen pending request count to detect new arrivals at runtime
   int _lastSeenPendingCount = 0;
@@ -58,19 +60,24 @@ class _AccessControlScreenState extends ConsumerState<AccessControlScreen>
     final mac = req['nodeMac'] as String;
 
     try {
-      await _notificationsPlugin.show(
-        200, // Separate notification ID for access request
-        'New Access Request',
-        '$email requested access to node $mac.',
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'access_requests',
-            'Access Requests',
-            channelDescription: 'Notifications for user node access requests',
-            importance: Importance.high,
+      const AndroidNotificationDetails androidPlatformChannelSpecifics =
+          AndroidNotificationDetails(
+            'node_pairing_channel',
+            'Node Pairing Requests',
+            channelDescription:
+                'Notifications for new ESPHome node pairing requests',
+            importance: Importance.max,
             priority: Priority.high,
-          ),
-        ),
+            showWhen: true,
+          );
+      const NotificationDetails platformChannelSpecifics = NotificationDetails(
+        android: androidPlatformChannelSpecifics,
+      );
+      await _notificationsPlugin.show(
+        req.hashCode,
+        'New Node Pairing Request',
+        'User $email requested pairing for Node [$mac]',
+        platformChannelSpecifics,
       );
     } catch (_) {}
   }
@@ -87,9 +94,11 @@ class _AccessControlScreenState extends ConsumerState<AccessControlScreen>
     try {
       final users = await service.getUsersList();
       final approved = await service.getApprovedNodesList();
+      final currentId = await DeviceInfoHelper.getStableDeviceId();
       setState(() {
         _users = users;
         _approvedNodes = approved;
+        _currentDeviceId = currentId;
         _isLoading = false;
       });
     } catch (_) {
@@ -384,7 +393,7 @@ class _AccessControlScreenState extends ConsumerState<AccessControlScreen>
               ),
             ),
             const Tab(
-              text: 'Approved Nodes',
+              text: 'Approved',
               icon: Icon(Icons.verified_user_rounded, size: 20),
             ),
           ],
@@ -441,7 +450,9 @@ class _AccessControlScreenState extends ConsumerState<AccessControlScreen>
   }
 
   Widget _buildUsersTab() {
+    final theme = Theme.of(context);
     if (_users.isEmpty) {
+
       return Center(
         child: Text(
           'No users found.',
@@ -578,6 +589,7 @@ class _AccessControlScreenState extends ConsumerState<AccessControlScreen>
                       ? device['name']!
                       : '${devId.substring(0, devId.length.clamp(0, 12))}...';
                   final isApproved = status == 'approved';
+                  final isCurrent = devId == _currentDeviceId;
 
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4),
@@ -588,23 +600,58 @@ class _AccessControlScreenState extends ConsumerState<AccessControlScreen>
                           child: Row(
                             children: [
                               Icon(
-                                Icons.phone_android_rounded,
+                                isCurrent
+                                    ? Icons.phone_android_rounded
+                                    : Icons.devices_rounded,
                                 size: 14,
-                                color: isApproved
-                                    ? Colors.greenAccent
-                                    : Colors.orange,
+                                color: isCurrent
+                                    ? theme.primaryColor
+                                    : (isApproved
+                                        ? Colors.greenAccent
+                                        : Colors.orange),
                               ),
                               const SizedBox(width: 6),
                               Flexible(
                                 child: Text(
                                   displayName,
-                                  style: GoogleFonts.inter(fontSize: 12),
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    fontWeight: isCurrent
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                  ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
+                              if (isCurrent) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: theme.primaryColor.withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: theme.primaryColor.withOpacity(0.5),
+                                      width: 0.8,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'This Device',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                      color: theme.primaryColor,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),
+
                         // Device status switch
                         Row(
                           children: [
@@ -638,6 +685,60 @@ class _AccessControlScreenState extends ConsumerState<AccessControlScreen>
                                     );
                                 _showSuccessToast('Device status: $newStatus');
                                 _reloadData();
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.delete_outline_rounded,
+                                size: 18,
+                                color: Colors.redAccent,
+                              ),
+                              tooltip: 'Remove Device',
+                              onPressed: () async {
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    backgroundColor: Colors.grey.shade900
+                                        .withOpacity(0.95),
+                                    title: Text(
+                                      'Remove Device',
+                                      style: GoogleFonts.outfit(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    content: Text(
+                                      'Are you sure you want to remove "$displayName" for $email?',
+                                      style: GoogleFonts.inter(
+                                        color: Colors.white70,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(ctx, false),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(ctx, true),
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: Colors.redAccent,
+                                        ),
+                                        child: const Text('Remove'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (confirm == true) {
+                                  _showLoadingToast('Removing device...');
+                                  await ref
+                                      .read(accessControlServiceProvider)
+                                      .removeDevice(emailHash, devId);
+                                  _showSuccessToast('Device removed');
+                                  _reloadData();
+                                }
                               },
                             ),
                           ],

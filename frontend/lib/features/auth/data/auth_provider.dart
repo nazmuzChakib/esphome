@@ -221,7 +221,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
       }
     } catch (_) {}
 
+    // Ensure active device is registered/updated in Firebase for this user profile
+    await svc.registerCurrentDevice(user);
+
     // Fallback: use Firebase Auth displayName when first/last absent
+
     if ((firstName == null || firstName.isEmpty) && user.displayName != null) {
       final parts = user.displayName!.split(' ');
       firstName = parts.first;
@@ -448,10 +452,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> logout() async {
     state = state.copyWith(isLoading: true);
     try {
+      await _authService.unregisterCurrentDevice();
+    } catch (_) {}
+    try {
       await _authService.signOut();
     } catch (_) {}
     state = AuthState(isAuthenticated: false);
   }
+
 
   void clearError() {
     state = state.copyWith(error: null);

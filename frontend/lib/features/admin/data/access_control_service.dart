@@ -123,7 +123,7 @@ class AccessControlService {
             .ref('users/$emailHash/devices/$deviceId/status')
             .set(encryptedStatus);
       } else {
-        // Legacy: just set the string directly
+        // Legacy: set string directly
         await _db
             .ref('users/$emailHash/devices/$deviceId')
             .set(encryptedStatus);
@@ -131,7 +131,17 @@ class AccessControlService {
     } catch (_) {}
   }
 
+
+  /// Removes a registered device from a user profile.
+  Future<void> removeDevice(String emailHash, String deviceId) async {
+    try {
+      await _db.ref('users/$emailHash/devices/$deviceId').remove();
+    } catch (_) {}
+  }
+
+
   /// Realtime stream of pending access requests for admin live updates.
+
   Stream<List<Map<String, dynamic>>> watchPendingRequests() {
     return _db.ref('pending_requests').onValue.map((event) {
       final List<Map<String, dynamic>> requests = [];

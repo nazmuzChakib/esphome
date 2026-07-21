@@ -102,7 +102,30 @@ class AuthService {
     return cred;
   }
 
+  /// Unregisters/removes the current device from Firebase Realtime Database upon logout
+  Future<void> unregisterCurrentDevice() async {
+    try {
+      final user = _auth.currentUser;
+      if (user != null && user.email != null) {
+        final emailHash = EmailHelper.hashEmail(user.email!);
+        final deviceId = await DeviceInfoHelper.getStableDeviceId();
+        await _db.ref('users/$emailHash/devices/$deviceId').remove();
+      }
+    } catch (_) {}
+  }
+
+  /// Removes a specific device for a user profile
+  Future<void> removeUserDevice(String email, String deviceId) async {
+    try {
+      final emailHash = EmailHelper.hashEmail(email);
+      await _db.ref('users/$emailHash/devices/$deviceId').remove();
+    } catch (_) {}
+  }
+
   Future<void> signOut() async {
+    try {
+      await unregisterCurrentDevice();
+    } catch (_) {}
     try {
       await _auth.signOut();
     } catch (_) {}
@@ -112,6 +135,30 @@ class AuthService {
   }
 
   // Device identification is now handled by DeviceInfoHelper for stable IDs.
+
+  /// Register current device under the user profile with stable ID and display name
+  Future<void> registerCurrentDevice(User user) async {
+    try {
+      final emailHash = EmailHelper.hashEmail(user.email ?? '');
+      final deviceId = await DeviceInfoHelper.getStableDeviceId();
+      final deviceName = await DeviceInfoHelper.getDeviceDisplayName();
+      final deviceRef = _db.ref('users/$emailHash/devices/$deviceId');
+      final deviceSnap = await deviceRef.get();
+      if (!deviceSnap.exists) {
+        // First time this device registers: set status as approved with display name
+        final encryptedStatus = _encryptionService.encryptField('approved');
+        final encryptedName = _encryptionService.encryptField(deviceName);
+        await deviceRef.set({'status': encryptedStatus, 'name': encryptedName});
+      } else {
+        // Device exists: update display name in case it updated (e.g., OS/browser upgrade)
+        final encryptedName = _encryptionService.encryptField(deviceName);
+        await _db
+            .ref('users/$emailHash/devices/$deviceId/name')
+            .set(encryptedName);
+      }
+    } catch (_) {}
+  }
+
 
   Future<void> _syncUserProfile(
     User user,
@@ -157,25 +204,7 @@ class AuthService {
       }
     }
 
-    // Register current device under the user profile with stable ID and display name
-    try {
-      final deviceId = await DeviceInfoHelper.getStableDeviceId();
-      final deviceName = await DeviceInfoHelper.getDeviceDisplayName();
-      final deviceRef = _db.ref('users/$emailHash/devices/$deviceId');
-      final deviceSnap = await deviceRef.get();
-      if (!deviceSnap.exists) {
-        // First time this device registers: set status as approved with display name
-        final encryptedStatus = _encryptionService.encryptField('approved');
-        final encryptedName = _encryptionService.encryptField(deviceName);
-        await deviceRef.set({'status': encryptedStatus, 'name': encryptedName});
-      } else {
-        // Device exists: update name in case it changed (e.g., user renamed device)
-        final encryptedName = _encryptionService.encryptField(deviceName);
-        await _db
-            .ref('users/$emailHash/devices/$deviceId/name')
-            .set(encryptedName);
-      }
-    } catch (_) {}
+    await registerCurrentDevice(user);
 
     // Sync admin record: if this user's role is admin, write to admins/ collection
     await _syncAdminRecord(emailHash);
