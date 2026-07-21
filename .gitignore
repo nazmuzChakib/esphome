@@ -2,6 +2,13 @@
 # Root & Workspace Git Ignore Configuration
 # ==========================================
 
+# Internal Documentation, Custom Folders & Metadata
+Architecture/
+AppIcons/
+.agents/
+release_note.md
+client_build_deploy_report.md
+
 # ESPHome & Embedded C++ / Arduino Ignores
 *.hex
 *.elf
