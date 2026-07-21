@@ -1,0 +1,116 @@
+# Implementation Plan: Flutter Client App (ESPHome) - Phase 1
+
+This plan maps out the creation of the Flutter client-side app `ESPHome` inside the [frontend](file:///c:/Users/chaki/Desktop/ESPHome/frontend) directory. The application targets Android and Web platforms with the package name `com.adacode.esphome`. It uses Riverpod for state management, HiveDB for local caching, and implements the Phase 1 UI/UX screens using a premium, modern design language (dark mode, clean card layouts, smooth transitions).
+
+---
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Package Name and Organization Structure:**
+> The app will be created using `--org com.adacode --project-name esphome` which matches your package constraint `com.adacode.esphome`.
+> We will restrict platforms to `android,web` using the `--platforms` flag.
+>
+> **Design Assets:**
+> For the Splash and Setup Wizard screens, we will use modern SVG icons and custom drawing paths (`CustomPainter` / Lottie) to avoid missing asset dependencies during code compilation.
+
+---
+
+## Open Questions
+
+> [!IMPORTANT]
+> 1. **Firebase Configuration Files:** Since the layout incorporates a Login Screen, will you be configuring Firebase directly at this stage (e.g. providing `google-services.json` / Web configs)? Or should we implement mocked authentication endpoints for Phase 1 to let you test the layout seamlessly without setting up Firebase credentials?
+> 2. **Design Preference:** Should the app default to a dark-mode only theme (popular for IoT dashboards) or support dynamic system theme switching (Light/Dark)?
+
+---
+
+## Proposed Changes
+
+We will create the Flutter application inside a new subdirectory `frontend`. We will lay out the Clean Architecture folders and code modules for Phase 1.
+
+### Project Initialization & Config
+
+#### [NEW] [pubspec.yaml](file:///c:/Users/chaki/Desktop/ESPHome/frontend/pubspec.yaml)
+Add dependencies:
+* `flutter_riverpod`, `riverpod`: State management.
+* `hive`, `hive_flutter`: Local caching database.
+* `go_router`: Modern declarative routing.
+* `google_fonts`: Modern typography (Inter, Outfit).
+* `flutter_svg`: To render premium SVG vectors for the setup wizard.
+* `flutter_secure_storage`: For secure API key storage.
+* `crypto`, `encrypt`: For HMAC-SHA256 and AES-128-CBC parity tests in Phase 3.
+
+#### [NEW] [main.dart](file:///c:/Users/chaki/Desktop/ESPHome/frontend/lib/main.dart)
+Initialize Riverpod (`ProviderScope`), HiveDB, GoRouter routing mappings, and bootstrap the app.
+
+---
+
+### Core Infrastructure
+
+#### [NEW] [app_router.dart](file:///c:/Users/chaki/Desktop/ESPHome/frontend/lib/core/router/app_router.dart)
+Defines GoRouter routes:
+* `/splash` (Splash screen)
+* `/wizard` (Setup wizard walkthrough)
+* `/login` (Login screen)
+* `/dashboard` (Main dashboard)
+* `/node/:mac` (Device details and GPIO control panel)
+* `/settings` (Settings / Custom rules panel)
+
+#### [NEW] [app_theme.dart](file:///c:/Users/chaki/Desktop/ESPHome/frontend/lib/core/theme/app_theme.dart)
+Modern dark-themed system specifications (sleek gradients, high-contrast indicators, Outfit typography, custom Card themes).
+
+---
+
+### Phase 1 Features: UI/UX Layouts
+
+#### [NEW] [splash_screen.dart](file:///c:/Users/chaki/Desktop/ESPHome/frontend/lib/features/splash/presentation/splash_screen.dart)
+Splash Screen containing:
+* Glowing logo animation.
+* Checks local state via Riverpod providers to determine redirect path (Wizard -> Login -> Dashboard).
+
+#### [NEW] [setup_wizard_screen.dart](file:///c:/Users/chaki/Desktop/ESPHome/frontend/lib/features/setup/presentation/setup_wizard_screen.dart)
+A 3-step setup wizard layout:
+1. **Welcome Card:** Introducing the system capabilities with graphics.
+2. **Connection Config:** UI to configure local gateway discovery parameters or fallback MQTT host details.
+3. **Secret Provisioning:** Prompting for the default security token / `api_key` to store in secure storage.
+
+#### [NEW] [login_screen.dart](file:///c:/Users/chaki/Desktop/ESPHome/frontend/lib/features/auth/presentation/login_screen.dart)
+Login Screen containing:
+* Glassmorphic login card.
+* Visual forms validation for email/password.
+* Loading state overlays for asynchronous operations.
+
+#### [NEW] [dashboard_screen.dart](file:///c:/Users/chaki/Desktop/ESPHome/frontend/lib/features/dashboard/presentation/dashboard_screen.dart)
+Primary App Dashboard containing:
+* Horizontal tabs representing "Rooms" or groups.
+* Grid layout of IoT nodes with dynamic status chips (`Local-WS`, `Cloud-MQTT`, `Offline`).
+* Live telemetry summary cards (average temperature/humidity).
+
+#### [NEW] [node_control_screen.dart](file:///c:/Users/chaki/Desktop/ESPHome/frontend/lib/features/control/presentation/node_control_screen.dart)
+GPIO Switch / Load Panel:
+* Grid/List of active switches showing toggle indicators.
+* Real-time charts or numeric display cards for sensor nodes.
+
+#### [NEW] [settings_screen.dart](file:///c:/Users/chaki/Desktop/ESPHome/frontend/lib/features/settings/presentation/settings_screen.dart)
+Control parameters and rule customization UI:
+* Form fields to create automated trigger conditions (e.g. `If Sensor temperature > 30.0 Fan -> ON`).
+* Input fields for rule offset/hysteresis margins to avoid rapid relay oscillations.
+
+---
+
+## Verification Plan
+
+### Automated Tests
+Once project setup is completed, we will execute standard layout analysis tests:
+```bash
+cd frontend
+flutter analyze
+flutter test
+```
+
+### Manual Verification
+1. We will compile the web app to ensure layout compatibility:
+   ```bash
+   flutter run -d chrome
+   ```
+2. We will run mock integration tests inside the controllers to verify screen flows (e.g., clicking Next on the wizard successfully transitions to the Login page, and completing Auth enters the Dashboard).

@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "411704416028",
+    "firebase_url": "https://esphome-adacodec-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "esphome-adacodec",
+    "storage_bucket": "esphome-adacodec.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:411704416028:android:a4a24455fcb1ff44674cd9",
+        "android_client_info": {
+          "package_name": "com.adacode.esphome"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "411704416028-brp0oe26br3qmr65q66sb84alrpe7ldk.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBHQg2P86k3c3TD7dGFMHfQeQOQQfXAD6o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "411704416028-brp0oe26br3qmr65q66sb84alrpe7ldk.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

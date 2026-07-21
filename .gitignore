@@ -1,0 +1,120 @@
+# ==========================================
+# Root & Workspace Git Ignore Configuration
+# ==========================================
+
+# ESPHome & Embedded C++ / Arduino Ignores
+*.hex
+*.elf
+*.bin
+*.out
+*.ino.cpp
+*.ino.o
+.esphome/
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# Logs & Archives
+*.zip
+*.tar.gz
+*.7z
+logs/
+*.log
+
+# ==========================================
+# Flutter / Dart Workspace & Frontend Ignores
+# ==========================================
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+.flutter-plugins
+.flutter-plugins-dependencies
+migrate_working_dir/
+
+# Build artifacts & Output
+build/
+**/build/
+**/doc/api/
+**/coverage/
+
+# Android
+**/android/.gradle/
+**/android/captures/
+**/android/app/debug
+**/android/app/profile
+**/android/app/release
+**/android/local.properties
+**/android/key.properties
+*.keystore
+*.jks
+
+# iOS / macOS
+**/ios/Flutter/.last_build_id
+**/ios/Flutter/App.framework
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/profile
+**/ios/debug
+**/ios/release
+**/DerivedData/
+
+# Obfuscation & Symbols
+app.*.symbols
+app.*.map.json
+
+# ==========================================
+# Environment & Secret Files
+# ==========================================
+.env
+.env.*
+!.env.example
+
+# ==========================================
+# IDE & Editor Specific Files
+# ==========================================
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# IntelliJ / Android Studio
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# Xcode
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.xcuserdata
+
+# ==========================================
+# System & OS Generated Files
+# ==========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Miscellaneous / Temp
+*.class
+*.pyc
+*.swp
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/

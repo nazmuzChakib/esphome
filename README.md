@@ -28,7 +28,7 @@ This project bridges the gap between hardware nodes and user interface screens:
 * **Interactive Sliding Switch Selectors:** Sleek haptic-like option togglers (Toggle/Direct switch logic and 12h/24h time formatting configurations) with custom-painted elastic animations.
 * **Custom Symmetric Spinning Fan:** Symmetrical custom-drawn 3-blade SVG fan widget that rotates smoothly under `AnimationController` to visualize active status without off-center wobbles.
 * **Inline Node-Scoped Automations:** Configure rules directly from a specific node control view. Supports operators **ABOVE** and **UNDER** combined with a custom hysteresis margin to eliminate trigger oscillations.
-* **Bulk Global Automations:** Deploy single-condition rules that automatically split and distribute matching trigger definitions to target channels on all connected nodes.
+* **Global Automations:** Deploy single-condition rules that automatically split and distribute matching trigger definitions to target channels on all connected nodes.
 * **Live Telemetry Trend Charting:** Real-time line graph plotting that connects to actual historical sensor values (`tempHistory`) and repaints dynamically as the background simulation fluctuates.
 * **Robust Safety Locks:** Queries active automation rule states before allowing load deletion, blocking high-risk modifications and preventing state inconsistency.
 

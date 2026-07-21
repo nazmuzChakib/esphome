@@ -1,6 +1,6 @@
 name: esphome
 description: "ESPHome A Smart Home Control and Automation Project."
-publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+publish_to: "none" # Remove this line if you wish to publish to pub.dev
 
 # The following defines the version and build number for your application.
 # A version number is three numbers separated by dots, like 1.2.43
@@ -14,7 +14,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.1.0+2
+version: 1.2.4+8
 
 environment:
   sdk: ^3.11.4
@@ -30,11 +30,13 @@ dependencies:
     sdk: flutter
 
   cupertino_icons: ^1.0.8
+  image_picker: ^1.1.2
   flutter_riverpod: ^2.5.1
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   go_router: ^14.2.0
   google_fonts: ^6.2.1
+  flutter_markdown: ^0.7.3
   flutter_svg: ^2.0.10+1
   flutter_secure_storage: ^9.2.2
   crypto: ^3.0.3
@@ -45,7 +47,7 @@ dependencies:
   http: ^1.2.1
   permission_handler: ^11.3.1
   package_info_plus: ^9.0.1
-  open_file_plus: ^3.4.1+1
+  open_app_file: ^4.0.5
   firebase_core: ^3.2.0
   firebase_auth: ^5.1.1
   firebase_database: ^11.0.2
@@ -58,13 +60,11 @@ dev_dependencies:
   hive_generator: ^2.0.1
   build_runner: ^2.4.11
 
-
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
 # The following section is specific to Flutter packages.
 flutter:
-
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.

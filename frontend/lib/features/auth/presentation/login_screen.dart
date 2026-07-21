@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../data/auth_provider.dart';
+import '../../../core/widgets/custom_toast.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -68,6 +69,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _obscurePassword = true;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(authProvider.notifier).clearError();
+    });
+  }
+
+  @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
@@ -76,12 +85,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   void _handleLogin() async {
     if (_formKey.currentState?.validate() ?? false) {
-      final success = await ref.read(authProvider.notifier).login(
-            _emailController.text.trim(),
-            _passwordController.text.trim(),
+      final success = await ref
+          .read(authProvider.notifier)
+          .login(_emailController.text.trim(), _passwordController.text.trim());
+      if (mounted) {
+        if (success) {
+          GlassToast.show(
+            context,
+            icon: const Icon(Icons.check_circle_outline, color: Colors.green),
+            color: Colors.green,
+            message: 'Successfully logged in!',
+            behave: ToastBehavior.success,
           );
-      if (success && mounted) {
-        context.go('/dashboard');
+          context.go('/dashboard');
+        } else {
+          final error = ref.read(authProvider).error ?? 'Login failed';
+          GlassToast.show(
+            context,
+            icon: const Icon(Icons.error_outline, color: Colors.redAccent),
+            color: Colors.redAccent,
+            message: error,
+            behave: ToastBehavior.error,
+          );
+        }
       }
     }
   }
@@ -119,7 +145,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           // Login Form Card Wrapper
           Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24.0,
+                vertical: 40.0,
+              ),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 400),
                 child: Column(
@@ -163,7 +192,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       textAlign: TextAlign.center,
                       style: GoogleFonts.inter(
                         fontSize: 14,
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B),
                       ),
                     ),
                     const SizedBox(height: 36),
@@ -172,13 +203,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       borderRadius: BorderRadius.circular(24),
                       child: Container(
                         decoration: BoxDecoration(
-                          color: isDark 
-                              ? Colors.white.withOpacity(0.045) 
+                          color: isDark
+                              ? Colors.white.withOpacity(0.045)
                               : Colors.white.withOpacity(0.45),
                           borderRadius: BorderRadius.circular(24),
                           border: Border.all(
-                            color: isDark 
-                                ? Colors.white.withOpacity(0.12) 
+                            color: isDark
+                                ? Colors.white.withOpacity(0.12)
                                 : Colors.black.withOpacity(0.08),
                             width: 1.5,
                           ),
@@ -196,13 +227,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   style: GoogleFonts.inter(fontSize: 14),
                                   decoration: InputDecoration(
                                     labelText: 'Email Address',
-                                    prefixIcon: const Icon(Icons.email_outlined),
+                                    prefixIcon: const Icon(
+                                      Icons.email_outlined,
+                                    ),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(16),
                                     ),
                                     filled: true,
-                                    fillColor: isDark 
-                                        ? Colors.black.withOpacity(0.2) 
+                                    fillColor: isDark
+                                        ? Colors.black.withOpacity(0.2)
                                         : Colors.white.withOpacity(0.5),
                                   ),
                                   validator: (value) {
@@ -225,7 +258,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     prefixIcon: const Icon(Icons.lock_outline),
                                     suffixIcon: IconButton(
                                       icon: Icon(
-                                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                        _obscurePassword
+                                            ? Icons.visibility_off
+                                            : Icons.visibility,
                                       ),
                                       onPressed: () {
                                         setState(() {
@@ -237,8 +272,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                       borderRadius: BorderRadius.circular(16),
                                     ),
                                     filled: true,
-                                    fillColor: isDark 
-                                        ? Colors.black.withOpacity(0.2) 
+                                    fillColor: isDark
+                                        ? Colors.black.withOpacity(0.2)
                                         : Colors.white.withOpacity(0.5),
                                   ),
                                   validator: (value) {
@@ -254,7 +289,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 const SizedBox(height: 8),
                                 if (authState.error != null)
                                   Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 8.0,
+                                    ),
                                     child: Text(
                                       authState.error!,
                                       style: GoogleFonts.inter(
@@ -270,16 +307,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     borderRadius: BorderRadius.circular(16),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: theme.primaryColor.withOpacity(0.25),
+                                        color: theme.primaryColor.withOpacity(
+                                          0.25,
+                                        ),
                                         blurRadius: 16,
                                         offset: const Offset(0, 4),
                                       ),
                                     ],
                                   ),
                                   child: ElevatedButton(
-                                    onPressed: authState.isLoading ? null : _handleLogin,
+                                    onPressed: authState.isLoading
+                                        ? null
+                                        : _handleLogin,
                                     style: ElevatedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 16,
+                                      ),
                                       backgroundColor: theme.primaryColor,
                                       foregroundColor: Colors.white,
                                       elevation: 0,
@@ -310,10 +353,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   children: [
                                     const Expanded(child: Divider()),
                                     Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                      ),
                                       child: Text(
                                         'OR',
-                                        style: GoogleFonts.inter(fontSize: 11, color: Colors.grey),
+                                        style: GoogleFonts.inter(
+                                          fontSize: 11,
+                                          color: Colors.grey,
+                                        ),
                                       ),
                                     ),
                                     const Expanded(child: Divider()),
@@ -321,33 +369,52 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 ),
                                 const SizedBox(height: 16),
                                 OutlinedButton.icon(
-                                  icon: const Icon(Icons.g_mobiledata_rounded, size: 24),
+                                  icon: const Icon(
+                                    Icons.g_mobiledata_rounded,
+                                    size: 24,
+                                  ),
                                   onPressed: authState.isLoading
                                       ? null
                                       : () async {
-                                          final success = await ref.read(authProvider.notifier).loginWithGoogle();
+                                          final success = await ref
+                                              .read(authProvider.notifier)
+                                              .loginWithGoogle();
                                           if (success && mounted) {
                                             context.go('/dashboard');
                                           }
                                         },
                                   label: Text(
                                     'Continue with Google',
-                                    style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13),
+                                    style: GoogleFonts.inter(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                    ),
                                   ),
                                   style: OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(vertical: 14),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                    side: BorderSide(color: isDark ? Colors.white24 : Colors.black12),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 14,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    side: BorderSide(
+                                      color: isDark
+                                          ? Colors.white24
+                                          : Colors.black12,
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(height: 16),
                                 TextButton(
-                                  onPressed: () => context.push('/forget-password'),
+                                  onPressed: () =>
+                                      context.push('/forget-password'),
                                   child: Text(
                                     'Forgot Password?',
                                     style: GoogleFonts.inter(
                                       fontSize: 13,
-                                      color: isDark ? Colors.white70 : Colors.black54,
+                                      color: isDark
+                                          ? Colors.white70
+                                          : Colors.black54,
                                     ),
                                   ),
                                 ),
@@ -359,7 +426,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                       text: "Don't have an account? ",
                                       style: GoogleFonts.inter(
                                         fontSize: 13,
-                                        color: isDark ? Colors.white70 : Colors.black54,
+                                        color: isDark
+                                            ? Colors.white70
+                                            : Colors.black54,
                                       ),
                                       children: [
                                         TextSpan(

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../data/auth_provider.dart';
+import '../../../core/widgets/custom_toast.dart';
 
 class RegistrationScreen extends ConsumerStatefulWidget {
   const RegistrationScreen({super.key});
@@ -63,18 +64,29 @@ class _DashboardBackgroundBlobs extends StatelessWidget {
 
 class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _firstNameController = TextEditingController();
+  final TextEditingController _lastNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(authProvider.notifier).clearError();
+    });
+  }
+
+  @override
   void dispose() {
-    _nameController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -84,27 +96,33 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
   void _handleRegistration() async {
     if (_formKey.currentState?.validate() ?? false) {
       setState(() => _isLoading = true);
-      final success = await ref.read(authProvider.notifier).register(
+      final success = await ref
+          .read(authProvider.notifier)
+          .register(
             _emailController.text.trim(),
             _passwordController.text.trim(),
+            _firstNameController.text.trim(),
+            _lastNameController.text.trim(),
           );
       if (mounted) {
         setState(() => _isLoading = false);
         if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Account registered successfully!'),
-              backgroundColor: Colors.green,
-            ),
+          GlassToast.show(
+            context,
+            icon: const Icon(Icons.check_circle_outline, color: Colors.green),
+            color: Colors.green,
+            message: 'Account registered successfully!',
+            behave: ToastBehavior.success,
           );
           context.go('/dashboard');
         } else {
           final error = ref.read(authProvider).error ?? 'Registration failed';
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(error),
-              backgroundColor: Colors.redAccent,
-            ),
+          GlassToast.show(
+            context,
+            icon: const Icon(Icons.error_outline, color: Colors.redAccent),
+            color: Colors.redAccent,
+            message: error,
+            behave: ToastBehavior.error,
           );
         }
       }
@@ -142,7 +160,10 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
           ),
           Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24.0,
+                vertical: 40.0,
+              ),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 400),
                 child: Column(
@@ -185,7 +206,9 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                       textAlign: TextAlign.center,
                       style: GoogleFonts.inter(
                         fontSize: 14,
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B),
                       ),
                     ),
                     const SizedBox(height: 36),
@@ -193,13 +216,13 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                       borderRadius: BorderRadius.circular(24),
                       child: Container(
                         decoration: BoxDecoration(
-                          color: isDark 
-                              ? Colors.white.withOpacity(0.045) 
+                          color: isDark
+                              ? Colors.white.withOpacity(0.045)
                               : Colors.white.withOpacity(0.45),
                           borderRadius: BorderRadius.circular(24),
                           border: Border.all(
-                            color: isDark 
-                                ? Colors.white.withOpacity(0.12) 
+                            color: isDark
+                                ? Colors.white.withOpacity(0.12)
                                 : Colors.black.withOpacity(0.08),
                             width: 1.5,
                           ),
@@ -211,27 +234,67 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                // Name field
-                                TextFormField(
-                                  controller: _nameController,
-                                  style: GoogleFonts.inter(fontSize: 14),
-                                  decoration: InputDecoration(
-                                    labelText: 'Full Name',
-                                    prefixIcon: const Icon(Icons.person_outline),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(16),
+                                // Name fields
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextFormField(
+                                        controller: _firstNameController,
+                                        style: GoogleFonts.inter(fontSize: 14),
+                                        decoration: InputDecoration(
+                                          labelText: 'First Name',
+                                          prefixIcon: const Icon(
+                                            Icons.person_outline,
+                                          ),
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              16,
+                                            ),
+                                          ),
+                                          filled: true,
+                                          fillColor: isDark
+                                              ? Colors.black.withOpacity(0.2)
+                                              : Colors.white.withOpacity(0.5),
+                                        ),
+                                        validator: (value) {
+                                          if (value == null ||
+                                              value.trim().isEmpty) {
+                                            return 'Required';
+                                          }
+                                          return null;
+                                        },
+                                      ),
                                     ),
-                                    filled: true,
-                                    fillColor: isDark 
-                                        ? Colors.black.withOpacity(0.2) 
-                                        : Colors.white.withOpacity(0.5),
-                                  ),
-                                  validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return 'Please enter your name';
-                                    }
-                                    return null;
-                                  },
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: TextFormField(
+                                        controller: _lastNameController,
+                                        style: GoogleFonts.inter(fontSize: 14),
+                                        decoration: InputDecoration(
+                                          labelText: 'Last Name',
+                                          prefixIcon: const Icon(
+                                            Icons.person_outline,
+                                          ),
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              16,
+                                            ),
+                                          ),
+                                          filled: true,
+                                          fillColor: isDark
+                                              ? Colors.black.withOpacity(0.2)
+                                              : Colors.white.withOpacity(0.5),
+                                        ),
+                                        validator: (value) {
+                                          if (value == null ||
+                                              value.trim().isEmpty) {
+                                            return 'Required';
+                                          }
+                                          return null;
+                                        },
+                                      ),
+                                    ),
+                                  ],
                                 ),
                                 const SizedBox(height: 16),
                                 // Email field
@@ -241,13 +304,15 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                                   style: GoogleFonts.inter(fontSize: 14),
                                   decoration: InputDecoration(
                                     labelText: 'Email Address',
-                                    prefixIcon: const Icon(Icons.email_outlined),
+                                    prefixIcon: const Icon(
+                                      Icons.email_outlined,
+                                    ),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(16),
                                     ),
                                     filled: true,
-                                    fillColor: isDark 
-                                        ? Colors.black.withOpacity(0.2) 
+                                    fillColor: isDark
+                                        ? Colors.black.withOpacity(0.2)
                                         : Colors.white.withOpacity(0.5),
                                   ),
                                   validator: (value) {
@@ -271,7 +336,9 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                                     prefixIcon: const Icon(Icons.lock_outline),
                                     suffixIcon: IconButton(
                                       icon: Icon(
-                                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                        _obscurePassword
+                                            ? Icons.visibility_off
+                                            : Icons.visibility,
                                       ),
                                       onPressed: () {
                                         setState(() {
@@ -283,8 +350,8 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                                       borderRadius: BorderRadius.circular(16),
                                     ),
                                     filled: true,
-                                    fillColor: isDark 
-                                        ? Colors.black.withOpacity(0.2) 
+                                    fillColor: isDark
+                                        ? Colors.black.withOpacity(0.2)
                                         : Colors.white.withOpacity(0.5),
                                   ),
                                   validator: (value) {
@@ -305,14 +372,19 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                                   style: GoogleFonts.inter(fontSize: 14),
                                   decoration: InputDecoration(
                                     labelText: 'Confirm Password',
-                                    prefixIcon: const Icon(Icons.lock_reset_outlined),
+                                    prefixIcon: const Icon(
+                                      Icons.lock_reset_outlined,
+                                    ),
                                     suffixIcon: IconButton(
                                       icon: Icon(
-                                        _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
+                                        _obscureConfirmPassword
+                                            ? Icons.visibility_off
+                                            : Icons.visibility,
                                       ),
                                       onPressed: () {
                                         setState(() {
-                                          _obscureConfirmPassword = !_obscureConfirmPassword;
+                                          _obscureConfirmPassword =
+                                              !_obscureConfirmPassword;
                                         });
                                       },
                                     ),
@@ -320,8 +392,8 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                                       borderRadius: BorderRadius.circular(16),
                                     ),
                                     filled: true,
-                                    fillColor: isDark 
-                                        ? Colors.black.withOpacity(0.2) 
+                                    fillColor: isDark
+                                        ? Colors.black.withOpacity(0.2)
                                         : Colors.white.withOpacity(0.5),
                                   ),
                                   validator: (value) {
@@ -340,16 +412,22 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                                     borderRadius: BorderRadius.circular(16),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: theme.primaryColor.withOpacity(0.25),
+                                        color: theme.primaryColor.withOpacity(
+                                          0.25,
+                                        ),
                                         blurRadius: 16,
                                         offset: const Offset(0, 4),
                                       ),
                                     ],
                                   ),
                                   child: ElevatedButton(
-                                    onPressed: _isLoading ? null : _handleRegistration,
+                                    onPressed: _isLoading
+                                        ? null
+                                        : _handleRegistration,
                                     style: ElevatedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 16,
+                                      ),
                                       backgroundColor: theme.primaryColor,
                                       foregroundColor: Colors.white,
                                       elevation: 0,
@@ -383,7 +461,9 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                                       text: "Already have an account? ",
                                       style: GoogleFonts.inter(
                                         fontSize: 13,
-                                        color: isDark ? Colors.white70 : Colors.black54,
+                                        color: isDark
+                                            ? Colors.white70
+                                            : Colors.black54,
                                       ),
                                       children: [
                                         TextSpan(
