@@ -141,9 +141,19 @@ class AccessControlService {
 
 
   /// Realtime stream of pending access requests for admin live updates.
+  Stream<List<Map<String, dynamic>>> watchPendingRequests() async* {
+    // 1. Yield initial snapshot fast via getPendingRequests() to prevent UI hanging on loading
+    try {
+      final initialData = await getPendingRequests().timeout(
+        const Duration(seconds: 3),
+      );
+      yield initialData;
+    } catch (_) {
+      yield <Map<String, dynamic>>[];
+    }
 
-  Stream<List<Map<String, dynamic>>> watchPendingRequests() {
-    return _db.ref('pending_requests').onValue.map((event) {
+    // 2. Yield live updates from Firebase RTDB
+    yield* _db.ref('pending_requests').onValue.map((event) {
       final List<Map<String, dynamic>> requests = [];
       try {
         if (!event.snapshot.exists || event.snapshot.value == null) {
@@ -198,6 +208,7 @@ class AccessControlService {
       return requests;
     });
   }
+
 
   /// Fetches and decrypts pending node request details.
   Future<List<Map<String, dynamic>>> getPendingRequests() async {

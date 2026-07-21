@@ -429,15 +429,16 @@ class _AccessControlScreenState extends ConsumerState<AccessControlScreen>
                         onRefresh: _reloadData,
                         child: _buildRequestsTab(pending),
                       ),
-                      loading: () =>
-                          const Center(child: CircularProgressIndicator()),
-                      error: (e, _) => Center(
-                        child: Text(
-                          'Error loading requests',
-                          style: GoogleFonts.inter(color: Colors.redAccent),
-                        ),
+                      loading: () => RefreshIndicator(
+                        onRefresh: _reloadData,
+                        child: _buildRequestsTab([]),
+                      ),
+                      error: (e, _) => RefreshIndicator(
+                        onRefresh: _reloadData,
+                        child: _buildRequestsTab([]),
                       ),
                     ),
+
                     RefreshIndicator(
                       onRefresh: _reloadData,
                       child: _buildApprovedNodesTab(),
@@ -669,77 +670,101 @@ class _AccessControlScreenState extends ConsumerState<AccessControlScreen>
                             Switch.adaptive(
                               value: isApproved,
                               activeColor: Colors.greenAccent,
-                              onChanged: (approved) async {
-                                final newStatus = approved
-                                    ? 'approved'
-                                    : 'unapproved';
-                                _showLoadingToast(
-                                  'Updating device verification...',
-                                );
-                                await ref
-                                    .read(accessControlServiceProvider)
-                                    .updateDeviceStatus(
-                                      emailHash,
-                                      devId,
-                                      newStatus,
-                                    );
-                                _showSuccessToast('Device status: $newStatus');
-                                _reloadData();
-                              },
+                              onChanged: isCurrent
+                                  ? null
+                                  : (approved) async {
+                                      final newStatus = approved
+                                          ? 'approved'
+                                          : 'unapproved';
+                                      _showLoadingToast(
+                                        'Updating device verification...',
+                                      );
+                                      await ref
+                                          .read(accessControlServiceProvider)
+                                          .updateDeviceStatus(
+                                            emailHash,
+                                            devId,
+                                            newStatus,
+                                          );
+                                      _showSuccessToast(
+                                        'Device status: $newStatus',
+                                      );
+                                      _reloadData();
+                                    },
                             ),
                             IconButton(
-                              icon: const Icon(
+                              icon: Icon(
                                 Icons.delete_outline_rounded,
                                 size: 18,
-                                color: Colors.redAccent,
+                                color: isCurrent
+                                    ? Colors.grey.withOpacity(0.5)
+                                    : Colors.redAccent,
                               ),
-                              tooltip: 'Remove Device',
-                              onPressed: () async {
-                                final confirm = await showDialog<bool>(
-                                  context: context,
-                                  builder: (ctx) => AlertDialog(
-                                    backgroundColor: Colors.grey.shade900
-                                        .withOpacity(0.95),
-                                    title: Text(
-                                      'Remove Device',
-                                      style: GoogleFonts.outfit(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    content: Text(
-                                      'Are you sure you want to remove "$displayName" for $email?',
-                                      style: GoogleFonts.inter(
-                                        color: Colors.white70,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(ctx, false),
-                                        child: const Text('Cancel'),
-                                      ),
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(ctx, true),
-                                        style: TextButton.styleFrom(
-                                          foregroundColor: Colors.redAccent,
+                              tooltip: isCurrent
+                                  ? 'Active device cannot be removed'
+                                  : 'Remove Device',
+                              onPressed: isCurrent
+                                  ? () {
+                                      GlassToast.show(
+                                        context,
+                                        icon: const Icon(
+                                          Icons.warning_amber_rounded,
+                                          color: Colors.orangeAccent,
                                         ),
-                                        child: const Text('Remove'),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                                if (confirm == true) {
-                                  _showLoadingToast('Removing device...');
-                                  await ref
-                                      .read(accessControlServiceProvider)
-                                      .removeDevice(emailHash, devId);
-                                  _showSuccessToast('Device removed');
-                                  _reloadData();
-                                }
-                              },
+                                        color: Colors.orangeAccent,
+                                        message:
+                                            'Active device cannot be removed. Please log out to unregister.',
+                                        behave: ToastBehavior.warning,
+                                      );
+
+                                    }
+                                  : () async {
+                                      final confirm = await showDialog<bool>(
+                                        context: context,
+                                        builder: (ctx) => AlertDialog(
+                                          backgroundColor: Colors.grey.shade900
+                                              .withOpacity(0.95),
+                                          title: Text(
+                                            'Remove Device',
+                                            style: GoogleFonts.outfit(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          content: Text(
+                                            'Are you sure you want to remove "$displayName" for $email?',
+                                            style: GoogleFonts.inter(
+                                              color: Colors.white70,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(ctx, false),
+                                              child: const Text('Cancel'),
+                                            ),
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(ctx, true),
+                                              style: TextButton.styleFrom(
+                                                foregroundColor:
+                                                    Colors.redAccent,
+                                              ),
+                                              child: const Text('Remove'),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                      if (confirm == true) {
+                                        _showLoadingToast('Removing device...');
+                                        await ref
+                                            .read(accessControlServiceProvider)
+                                            .removeDevice(emailHash, devId);
+                                        _showSuccessToast('Device removed');
+                                        _reloadData();
+                                      }
+                                    },
                             ),
                           ],
                         ),
@@ -749,6 +774,7 @@ class _AccessControlScreenState extends ConsumerState<AccessControlScreen>
                 }),
             ],
           ),
+
         );
       },
     );
@@ -756,24 +782,31 @@ class _AccessControlScreenState extends ConsumerState<AccessControlScreen>
 
   Widget _buildRequestsTab(List<Map<String, dynamic>> pendingRequests) {
     if (pendingRequests.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.check_circle_outline,
-              size: 48,
-              color: Colors.grey.withOpacity(0.5),
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(height: MediaQuery.of(context).size.height * 0.25),
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.check_circle_outline,
+                  size: 48,
+                  color: Colors.grey.withOpacity(0.5),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'No pending requests.',
+                  style: GoogleFonts.inter(color: Colors.grey),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            Text(
-              'No pending requests.',
-              style: GoogleFonts.inter(color: Colors.grey),
-            ),
-          ],
-        ),
+          ),
+        ],
       );
     }
+
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),

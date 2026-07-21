@@ -784,60 +784,79 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   ),
                                   const SizedBox(width: 4),
                                   IconButton(
-                                    icon: const Icon(
+                                    icon: Icon(
                                       Icons.delete_outline_rounded,
                                       size: 18,
-                                      color: Colors.redAccent,
+                                      color: isCurrent
+                                          ? Colors.grey.withOpacity(0.5)
+                                          : Colors.redAccent,
                                     ),
-                                    tooltip: 'Remove Device',
-                                    onPressed: () async {
-                                      final confirm = await showDialog<bool>(
-                                        context: context,
-                                        builder: (ctx) => AlertDialog(
-                                          backgroundColor: Colors.grey.shade900
-                                              .withOpacity(0.95),
-                                          title: Text(
-                                            'Remove Device',
-                                            style: GoogleFonts.outfit(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          content: Text(
-                                            'Are you sure you want to remove "$devName"?',
-                                            style: GoogleFonts.inter(
-                                              color: Colors.white70,
-                                              fontSize: 13,
-                                            ),
-                                          ),
-                                          actions: [
-                                            TextButton(
-                                              onPressed: () =>
-                                                  Navigator.pop(ctx, false),
-                                              child: const Text('Cancel'),
-                                            ),
-                                            TextButton(
-                                              onPressed: () =>
-                                                  Navigator.pop(ctx, true),
-                                              style: TextButton.styleFrom(
-                                                foregroundColor:
-                                                    Colors.redAccent,
+                                    tooltip: isCurrent
+                                        ? 'Active device cannot be removed'
+                                        : 'Remove Device',
+                                    onPressed: isCurrent
+                                        ? () {
+                                            GlassToast.show(
+                                              context,
+                                              icon: const Icon(
+                                                Icons.warning_amber_rounded,
+                                                color: Colors.orangeAccent,
                                               ),
-                                              child: const Text('Remove'),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                      if (confirm == true && email.isNotEmpty) {
-                                        await ref
-                                            .read(authServiceProvider)
-                                            .removeUserDevice(email, devId);
-                                        setState(() {});
-                                      }
-                                    },
+                                              color: Colors.orangeAccent,
+                                              message:
+                                                  'Active device cannot be removed. Please log out to unregister.',
+                                              behave: ToastBehavior.warning,
+                                            );
+                                          }
+                                        : () async {
+                                            final confirm = await showDialog<bool>(
+                                              context: context,
+                                              builder: (ctx) => AlertDialog(
+                                                backgroundColor: Colors.grey.shade900
+                                                    .withOpacity(0.95),
+                                                title: Text(
+                                                  'Remove Device',
+                                                  style: GoogleFonts.outfit(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                content: Text(
+                                                  'Are you sure you want to remove "$devName"?',
+                                                  style: GoogleFonts.inter(
+                                                    color: Colors.white70,
+                                                    fontSize: 13,
+                                                  ),
+                                                ),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(ctx, false),
+                                                    child: const Text('Cancel'),
+                                                  ),
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(ctx, true),
+                                                    style: TextButton.styleFrom(
+                                                      foregroundColor:
+                                                          Colors.redAccent,
+                                                    ),
+                                                    child: const Text('Remove'),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                            if (confirm == true && email.isNotEmpty) {
+                                              await ref
+                                                  .read(authServiceProvider)
+                                                  .removeUserDevice(email, devId);
+                                              setState(() {});
+                                            }
+                                          },
                                   ),
                                 ],
                               ),
+
                             );
                           },
                         ),
