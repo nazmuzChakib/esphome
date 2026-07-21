@@ -11,14 +11,18 @@ class DatabaseInspectorScreen extends ConsumerStatefulWidget {
   const DatabaseInspectorScreen({super.key});
 
   @override
-  ConsumerState<DatabaseInspectorScreen> createState() => _DatabaseInspectorScreenState();
+  ConsumerState<DatabaseInspectorScreen> createState() =>
+      _DatabaseInspectorScreenState();
 }
 
-class _DatabaseInspectorScreenState extends ConsumerState<DatabaseInspectorScreen> {
+class _DatabaseInspectorScreenState
+    extends ConsumerState<DatabaseInspectorScreen> {
   final List<String> _boxes = const [
     'settings',
     'rules',
     'cached_nodes',
+    'cached_node_states',
+    'offline_command_queue',
     'cached_user_profile',
     'cached_permissions',
   ];
@@ -51,7 +55,8 @@ class _DatabaseInspectorScreenState extends ConsumerState<DatabaseInspectorScree
       setState(() {
         _boxData = data;
       });
-    } catch (_) {} finally {
+    } catch (_) {
+    } finally {
       setState(() {
         _isLoading = false;
       });
@@ -132,7 +137,9 @@ class _DatabaseInspectorScreenState extends ConsumerState<DatabaseInspectorScree
                                 fontWeight: FontWeight.bold,
                                 color: selected
                                     ? Colors.white
-                                    : (isDark ? Colors.white70 : Colors.black87),
+                                    : (isDark
+                                          ? Colors.white70
+                                          : Colors.black87),
                               ),
                             ),
                             selected: selected,
@@ -157,45 +164,45 @@ class _DatabaseInspectorScreenState extends ConsumerState<DatabaseInspectorScree
                   child: _isLoading
                       ? const Center(child: CircularProgressIndicator())
                       : _boxData.isEmpty
-                          ? Center(
-                              child: Text(
-                                'No data in this box',
-                                style: GoogleFonts.inter(color: Colors.grey),
-                              ),
-                            )
-                          : ListView.builder(
-                              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                              itemCount: _boxData.length,
-                              itemBuilder: (context, index) {
-                                final key = _boxData.keys.elementAt(index);
-                                final val = _boxData[key];
+                      ? Center(
+                          child: Text(
+                            'No data in this box',
+                            style: GoogleFonts.inter(color: Colors.grey),
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          itemCount: _boxData.length,
+                          itemBuilder: (context, index) {
+                            final key = _boxData.keys.elementAt(index);
+                            final val = _boxData[key];
 
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 12.0),
-                                  child: GlassContainer(
-                                    borderRadius: 16.0,
-                                    padding: const EdgeInsets.all(16.0),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Key: $key',
-                                          style: GoogleFonts.outfit(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                            color: theme.primaryColor,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        const Divider(),
-                                        const SizedBox(height: 8),
-                                        _buildValueDisplay(val, encService, isDark),
-                                      ],
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 12.0),
+                              child: GlassContainer(
+                                borderRadius: 16.0,
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Key: $key',
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: theme.primaryColor,
+                                      ),
                                     ),
-                                  ),
-                                );
-                              },
-                            ),
+                                    const SizedBox(height: 8),
+                                    const Divider(),
+                                    const SizedBox(height: 8),
+                                    _buildValueDisplay(val, encService, isDark),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                 ),
               ],
             ),

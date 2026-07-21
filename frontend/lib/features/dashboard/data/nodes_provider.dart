@@ -93,6 +93,14 @@ class NodesNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     _isInitialized = true;
     _startSimulation();
 
+    // Listen to local cache mutations to reactively update state and re-render UI
+    Hive.box(CacheKeys.nodesBox).listenable().addListener(() {
+      final updatedCached = _getCachedNodesSync();
+      if (updatedCached.isNotEmpty) {
+        state = updatedCached;
+      }
+    });
+
     // Parallel check internet and sync Firebase with a timeout
     _syncFirebaseNodes();
   }
