@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -7,6 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart' show FirebaseAuth, User;
 import '../../../core/cache/cache_keys.dart';
 import '../../../core/utils/email_helper.dart';
 import '../../../core/security/secure_storage_provider.dart';
+import '../../../core/widgets/custom_toast.dart';
 import 'auth_service.dart';
 
 class AuthState {
@@ -327,21 +329,43 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  Future<bool> login(String email, String password) async {
+  Future<bool> login(
+    String email,
+    String password, {
+    BuildContext? context,
+  }) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
       await _authService.signInWithEmailAndPassword(email, password);
+      if (context != null && context.mounted) {
+        AppToast.success(context, message: 'Successfully logged in!');
+      }
       return true;
     } catch (e) {
       String errMsg = e.toString().replaceFirst(RegExp(r'^\[.*\]\s*'), '');
       final lowerMsg = errMsg.toLowerCase();
-      if (lowerMsg.contains('user-not-found') ||
-          lowerMsg.contains('invalid-login-credentials') ||
-          lowerMsg.contains('invalid-credential') ||
-          lowerMsg.contains('wrong-password')) {
+      if (lowerMsg.contains('user-not-found')) {
         errMsg = 'Invalid credentials or user does not exist.';
+      } else if (lowerMsg.contains('invalid-login-credentials') ||
+          lowerMsg.contains('invalid-credential')) {
+        errMsg = 'Invalid login credentials. Please try again.';
+      } else if (lowerMsg.contains('wrong-password')) {
+        errMsg = 'Incorrect password. Please try again.';
+      } else if (lowerMsg.contains('too-many-requests')) {
+        errMsg = 'Too many requests. Please try again later.';
+      } else if (lowerMsg.contains('user-disabled')) {
+        errMsg = 'Your account has been disabled. Please contact support.';
+      } else if (lowerMsg.contains('network-request-failed')) {
+        errMsg = 'Network request failed. Please try again.';
+      } else if (lowerMsg.contains('internal-error')) {
+        errMsg = 'Internal error. Please try again.';
+      } else if (lowerMsg.contains('operation-not-allowed')) {
+        errMsg = 'Operation not allowed. Please contact support.';
       }
       state = state.copyWith(isLoading: false, error: errMsg);
+      if (context != null && context.mounted) {
+        AppToast.error(context, message: errMsg);
+      }
       return false;
     }
   }
@@ -350,8 +374,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     String email,
     String password,
     String firstName,
-    String lastName,
-  ) async {
+    String lastName, {
+    BuildContext? context,
+  }) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final box = Hive.box(CacheKeys.userProfileBox);
@@ -368,16 +393,24 @@ class AuthNotifier extends StateNotifier<AuthState> {
         firstName,
         lastName,
       );
+      if (context != null && context.mounted) {
+        AppToast.success(context, message: 'Account registered successfully!');
+      }
       return true;
     } catch (e) {
       String errMsg = e.toString().replaceFirst(RegExp(r'^\[.*\]\s*'), '');
       final lowerMsg = errMsg.toLowerCase();
       if (lowerMsg.contains('email-already-in-use')) {
-        errMsg = 'This email address is already in use by another user.';
+        errMsg =
+            'This email address is already in use. Try a different one or login instead.';
       } else if (lowerMsg.contains('weak-password')) {
-        errMsg = 'The password provided is too weak.';
+        errMsg =
+            'The password provided is too weak. Please use a stronger password.';
       }
       state = state.copyWith(isLoading: false, error: errMsg);
+      if (context != null && context.mounted) {
+        AppToast.error(context, message: errMsg);
+      }
       return false;
     }
   }
@@ -387,6 +420,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String lastName,
     required String name,
     String? photoUrl,
+    BuildContext? context,
   }) async {
     state = state.copyWith(isLoading: true);
     try {
@@ -429,27 +463,68 @@ class AuthNotifier extends StateNotifier<AuthState> {
           photoUrl: photoUrl ?? state.photoUrl,
           isLoading: false,
         );
+        if (context != null && context.mounted) {
+          AppToast.success(context, message: 'Profile updated successfully!');
+        }
       }
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      final errMsg = e.toString().replaceFirst(RegExp(r'^\[.*\]\s*'), '');
+      state = state.copyWith(isLoading: false, error: errMsg);
+      if (context != null && context.mounted) {
+        AppToast.error(context, message: errMsg);
+      }
     }
   }
 
-  Future<bool> loginWithGoogle() async {
+  Future<bool> loginWithGoogle({BuildContext? context}) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final cred = await _authService.signInWithGoogle();
-      return cred != null;
+      final success = cred != null;
+      if (success && context != null && context.mounted) {
+        AppToast.success(context, message: 'Signed in with Google successfully!');
+      }
+      return success;
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: e.toString().replaceFirst(RegExp(r'^\[.*\]\s*'), ''),
-      );
+      final errMsg = e.toString().replaceFirst(RegExp(r'^\[.*\]\s*'), '');
+      state = state.copyWith(isLoading: false, error: errMsg);
+      if (context != null && context.mounted) {
+        AppToast.error(context, message: errMsg);
+      }
       return false;
     }
   }
 
-  Future<void> logout() async {
+  Future<bool> resetPassword(String email, {BuildContext? context}) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      state = state.copyWith(isLoading: false);
+      if (context != null && context.mounted) {
+        AppToast.success(
+          context,
+          message:
+              'A password reset link has been dispatched to $email. Please check your inbox.',
+        );
+      }
+      return true;
+    } catch (e) {
+      String errMsg = e.toString().replaceFirst(RegExp(r'^\[.*\]\s*'), '');
+      final lowerMsg = errMsg.toLowerCase();
+      if (lowerMsg.contains('user-not-found')) {
+        errMsg = 'No registered user found with this email address.';
+      } else if (lowerMsg.contains('invalid-email')) {
+        errMsg = 'Invalid email address format.';
+      }
+      state = state.copyWith(isLoading: false, error: errMsg);
+      if (context != null && context.mounted) {
+        AppToast.error(context, message: errMsg);
+      }
+      return false;
+    }
+  }
+
+  Future<void> logout({BuildContext? context}) async {
     state = state.copyWith(isLoading: true);
     try {
       await _authService.unregisterCurrentDevice();
@@ -458,8 +533,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await _authService.signOut();
     } catch (_) {}
     state = AuthState(isAuthenticated: false);
+    if (context != null && context.mounted) {
+      AppToast.info(context, message: 'Successfully signed out.');
+    }
   }
-
 
   void clearError() {
     state = state.copyWith(error: null);

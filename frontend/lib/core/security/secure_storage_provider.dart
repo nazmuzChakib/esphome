@@ -36,10 +36,12 @@ class ApiKeyNotifier extends StateNotifier<String?> {
   }
 }
 
-final firebaseKeyProvider = StateNotifierProvider<FirebaseKeyNotifier, String?>((ref) {
-  final secureStorage = ref.watch(secureStorageProvider);
-  return FirebaseKeyNotifier(secureStorage);
-});
+final firebaseKeyProvider = StateNotifierProvider<FirebaseKeyNotifier, String?>(
+  (ref) {
+    final secureStorage = ref.watch(secureStorageProvider);
+    return FirebaseKeyNotifier(secureStorage);
+  },
+);
 
 class FirebaseKeyNotifier extends StateNotifier<String?> {
   final FlutterSecureStorage _storage;
@@ -53,7 +55,10 @@ class FirebaseKeyNotifier extends StateNotifier<String?> {
     final value = await _storage.read(key: _key);
     if (value == null) {
       // Default fallback encryption key for Firebase
-      const fallback = String.fromEnvironment('FIREBASE_KEY', defaultValue: 'default_firebase_sec_key_123456');
+      const fallback = String.fromEnvironment(
+        'FIREBASE_KEY',
+        defaultValue: 'default_firebase_sec_key_123456',
+      );
       state = fallback;
     } else {
       state = value;

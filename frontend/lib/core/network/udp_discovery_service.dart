@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../security/node_security_service.dart';
+import 'debug_log_service.dart';
 
 final udpDiscoveryServiceProvider = Provider<UdpDiscoveryService>((ref) {
   final nodeSecurity = ref.watch(nodeSecurityServiceProvider);
@@ -124,6 +125,13 @@ class UdpDiscoveryService {
       final rawStr = utf8.decode(dg.data).trim();
       final senderIp = dg.address.address;
 
+      DebugLogger.log(
+        source: 'UDP',
+        direction: 'INBOUND',
+        payload: rawStr,
+        level: LogLevel.info,
+      );
+
       // Handle encrypted or plain discovery responses
       // Encrypted frame: [Timestamp]:[Base64]
       // Plain frame: ESPHOME_DISCOVERY:[IP]:[MAC]:[UPTIME]
@@ -211,6 +219,13 @@ class UdpDiscoveryService {
       );
       final bytes = utf8.encode(queryFrame);
       _socket?.send(bytes, InternetAddress('255.255.255.255'), discoveryPort);
+      DebugLogger.log(
+        source: 'UDP',
+        direction: 'OUTBOUND',
+        payload:
+            'Broadcast discovery query: ESPHOME_QUERY (Port $discoveryPort)',
+        level: LogLevel.info,
+      );
     } catch (_) {}
   }
 

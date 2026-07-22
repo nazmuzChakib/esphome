@@ -192,7 +192,7 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
               await _notificationsPlugin.show(
                 100, // Unique notification ID for update alert
                 'New Update Available',
-                'Version v$cleanTag is available for download ($targetAbi).',
+                'Version v$cleanTag is available for download.',
                 const NotificationDetails(
                   android: AndroidNotificationDetails(
                     'app_updates',

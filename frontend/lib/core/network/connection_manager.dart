@@ -5,6 +5,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../cache/local_cache_service.dart';
 import '../security/node_security_service.dart';
+import 'debug_log_service.dart';
 
 final connectionManagerProvider = Provider<ConnectionManager>((ref) {
   final nodeSecurity = ref.watch(nodeSecurityServiceProvider);
@@ -34,6 +35,14 @@ class ConnectionManager {
     }
 
     try {
+      DebugLogger.log(
+        source: 'WS',
+        direction: 'INTERNAL',
+        payload: 'Connecting WebSocket to ws://$ip:80/ws',
+        level: LogLevel.info,
+        mac: mac,
+      );
+
       final wsUrl = Uri.parse('ws://$ip:80/ws');
       final channel = WebSocketChannel.connect(wsUrl);
 
@@ -46,9 +55,23 @@ class ConnectionManager {
           _handleIncomingFrame(mac: mac, rawData: data, apiKey: apiKey);
         },
         onError: (err) {
+          DebugLogger.log(
+            source: 'WS',
+            direction: 'INTERNAL',
+            payload: 'WebSocket error: $err',
+            level: LogLevel.error,
+            mac: mac,
+          );
           _closeWsSession(mac);
         },
         onDone: () {
+          DebugLogger.log(
+            source: 'WS',
+            direction: 'INTERNAL',
+            payload: 'WebSocket closed/done',
+            level: LogLevel.warning,
+            mac: mac,
+          );
           _closeWsSession(mac);
         },
       );
@@ -60,11 +83,25 @@ class ConnectionManager {
         apiKey: apiKey,
       );
       channel.sink.add(syncFrame);
+      DebugLogger.log(
+        source: 'WS',
+        direction: 'OUTBOUND',
+        payload: syncFrame,
+        level: LogLevel.info,
+        mac: mac,
+      );
 
       // On successful WS connection, replay any pending offline commands for this node
       _flushOfflineQueueForNode(mac);
       return true;
-    } catch (_) {
+    } catch (e) {
+      DebugLogger.log(
+        source: 'WS',
+        direction: 'INTERNAL',
+        payload: 'Failed to connect WebSocket: $e',
+        level: LogLevel.error,
+        mac: mac,
+      );
       _closeWsSession(mac);
       return false;
     }
@@ -87,6 +124,14 @@ class ConnectionManager {
     String? apiKey,
   }) {
     if (rawData is! String) return;
+
+    DebugLogger.log(
+      source: 'WS',
+      direction: 'INBOUND',
+      payload: rawData,
+      level: LogLevel.success,
+      mac: mac,
+    );
 
     final decryptedPayload = _nodeSecurity.decryptEncryptedFrame(
       frame: rawData,
@@ -127,6 +172,13 @@ class ConnectionManager {
       if (_wsConnectedStatus[mac] == true && _wsChannels.containsKey(mac)) {
         try {
           _wsChannels[mac]!.sink.add(frame);
+          DebugLogger.log(
+            source: 'WS',
+            direction: 'OUTBOUND',
+            payload: frame,
+            level: LogLevel.info,
+            mac: mac,
+          );
           return true;
         } catch (_) {
           _closeWsSession(mac);
@@ -136,11 +188,19 @@ class ConnectionManager {
 
     // 2. Secondary Local HTTP API Fallback Connection
     if (ip.isNotEmpty) {
-      final success = await _sendHttpFallback(ip: ip, frame: frame);
+      final success = await _sendHttpFallback(ip: ip, frame: frame, mac: mac);
       if (success) return true;
     }
 
     // 3. Queue offline command to Hive DB if node is currently unreachable
+    DebugLogger.log(
+      source: 'System',
+      direction: 'INTERNAL',
+      payload: 'Node unreachable. Enqueuing command to offline Hive DB queue',
+      level: LogLevel.warning,
+      mac: mac,
+    );
+
     await _localCache.enqueueOfflineCommand({
       'mac': mac,
       'ip': ip,
@@ -155,15 +215,39 @@ class ConnectionManager {
   Future<bool> _sendHttpFallback({
     required String ip,
     required String frame,
+    String? mac,
   }) async {
     try {
+      DebugLogger.log(
+        source: 'HTTP',
+        direction: 'OUTBOUND',
+        payload: 'POST http://$ip:80/api/set-state\nPayload: $frame',
+        level: LogLevel.warning,
+        mac: mac,
+      );
+
       final url = Uri.parse('http://$ip:80/api/set-state');
       final response = await http
           .post(url, headers: {'Content-Type': 'text/plain'}, body: frame)
           .timeout(const Duration(seconds: 3));
 
+      DebugLogger.log(
+        source: 'HTTP',
+        direction: 'INBOUND',
+        payload: 'Status ${response.statusCode}: ${response.body}',
+        level: response.statusCode == 200 ? LogLevel.success : LogLevel.error,
+        mac: mac,
+      );
+
       return response.statusCode == 200;
-    } catch (_) {
+    } catch (e) {
+      DebugLogger.log(
+        source: 'HTTP',
+        direction: 'INTERNAL',
+        payload: 'HTTP fallback failed: $e',
+        level: LogLevel.error,
+        mac: mac,
+      );
       return false;
     }
   }

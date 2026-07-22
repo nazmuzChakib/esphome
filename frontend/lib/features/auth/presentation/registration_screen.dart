@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../data/auth_provider.dart';
-import '../../../core/widgets/custom_toast.dart';
 
 class RegistrationScreen extends ConsumerStatefulWidget {
   const RegistrationScreen({super.key});
@@ -103,27 +102,12 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
             _passwordController.text.trim(),
             _firstNameController.text.trim(),
             _lastNameController.text.trim(),
+            context: context,
           );
       if (mounted) {
         setState(() => _isLoading = false);
         if (success) {
-          GlassToast.show(
-            context,
-            icon: const Icon(Icons.check_circle_outline, color: Colors.green),
-            color: Colors.green,
-            message: 'Account registered successfully!',
-            behave: ToastBehavior.success,
-          );
           context.go('/dashboard');
-        } else {
-          final error = ref.read(authProvider).error ?? 'Registration failed';
-          GlassToast.show(
-            context,
-            icon: const Icon(Icons.error_outline, color: Colors.redAccent),
-            color: Colors.redAccent,
-            message: error,
-            behave: ToastBehavior.error,
-          );
         }
       }
     }

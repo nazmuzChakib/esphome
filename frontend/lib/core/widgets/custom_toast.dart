@@ -60,8 +60,119 @@ class GlassToast extends StatefulWidget {
     Overlay.of(context).insert(overlayEntry);
   }
 
+  /// Master Shortcut: Display Success Toast
+  static void success(
+    BuildContext context, {
+    required String message,
+    String? title,
+    Duration timeout = const Duration(seconds: 3),
+  }) {
+    show(
+      context,
+      icon: const Icon(Icons.check_circle_outline, color: Colors.green),
+      color: Colors.green,
+      message: message,
+      title: title,
+      timeout: timeout,
+      behave: ToastBehavior.success,
+    );
+  }
+
+  /// Master Shortcut: Display Error Toast
+  static void error(
+    BuildContext context, {
+    required String message,
+    String? title,
+    Duration timeout = const Duration(seconds: 3),
+  }) {
+    show(
+      context,
+      icon: const Icon(Icons.error_outline, color: Colors.redAccent),
+      color: Colors.redAccent,
+      message: message,
+      title: title,
+      timeout: timeout,
+      behave: ToastBehavior.error,
+    );
+  }
+
+  /// Master Shortcut: Display Warning Toast
+  static void warning(
+    BuildContext context, {
+    required String message,
+    String? title,
+    Duration timeout = const Duration(seconds: 3),
+  }) {
+    show(
+      context,
+      icon: const Icon(Icons.warning_amber_rounded, color: Colors.amber),
+      color: Colors.amber,
+      message: message,
+      title: title,
+      timeout: timeout,
+      behave: ToastBehavior.warning,
+    );
+  }
+
+  /// Master Shortcut: Display Info Toast
+  static void info(
+    BuildContext context, {
+    required String message,
+    String? title,
+    Duration timeout = const Duration(seconds: 3),
+  }) {
+    show(
+      context,
+      icon: const Icon(Icons.info_outline, color: Color(0xFF6366F1)),
+      color: const Color(0xFF6366F1),
+      message: message,
+      title: title,
+      timeout: timeout,
+      behave: ToastBehavior.info,
+    );
+  }
+
   @override
   State<GlassToast> createState() => _GlassToastState();
+}
+
+/// Unified Master Toast Utility Class
+class AppToast {
+  static void success(
+    BuildContext context, {
+    required String message,
+    String? title,
+    Duration timeout = const Duration(seconds: 3),
+  }) {
+    GlassToast.success(context, message: message, title: title, timeout: timeout);
+  }
+
+  static void error(
+    BuildContext context, {
+    required String message,
+    String? title,
+    Duration timeout = const Duration(seconds: 3),
+  }) {
+    GlassToast.error(context, message: message, title: title, timeout: timeout);
+  }
+
+  static void warning(
+    BuildContext context, {
+    required String message,
+    String? title,
+    Duration timeout = const Duration(seconds: 3),
+  }) {
+    GlassToast.warning(context, message: message, title: title, timeout: timeout);
+  }
+
+  static void info(
+    BuildContext context, {
+    required String message,
+    String? title,
+    Duration timeout = const Duration(seconds: 3),
+  }) {
+    GlassToast.info(context, message: message, title: title, timeout: timeout);
+  }
 }
 
 class _GlassToastState extends State<GlassToast> with SingleTickerProviderStateMixin {

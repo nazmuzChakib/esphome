@@ -200,16 +200,10 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
                       ElevatedButton(
                         onPressed: () {
                           if (_currentPage == 0 && !_agreedToTerms) {
-                            GlassToast.show(
+                            AppToast.warning(
                               context,
-                              icon: const Icon(
-                                Icons.warning_amber_rounded,
-                                color: Colors.amber,
-                              ),
-                              color: Colors.amber,
                               message:
                                   'You must agree to the Terms & Conditions and Privacy Policy to proceed.',
-                              behave: ToastBehavior.info,
                             );
                             return;
                           }
@@ -218,16 +212,10 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
                                   !_locationGranted ||
                                   !_storageGranted ||
                                   !_installerGranted)) {
-                            GlassToast.show(
+                            AppToast.error(
                               context,
-                              icon: const Icon(
-                                Icons.security_rounded,
-                                color: Colors.redAccent,
-                              ),
-                              color: Colors.red,
                               message:
-                                  'All permissions must be allowed to proceed.',
-                              behave: ToastBehavior.error,
+                                  'All permissions must be allowed to proceed. See Privacy Policy for more details.',
                             );
                             return;
                           }
@@ -363,7 +351,7 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Control your home smart nodes locally with AES-128-CBC security encryption and cloud fallback through secure MQTT.',
+                'Control your home smart nodes locally with AES-128-CBC security encryption and cloud with secure MQTT.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
                   fontSize: 13,

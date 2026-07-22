@@ -293,8 +293,8 @@ class _NodeControlScreenState extends ConsumerState<NodeControlScreen>
                         : Colors.white.withOpacity(0.5),
                   ),
                   items: const [
-                    DropdownMenuItem(value: 0, child: Text('Light (Bulb)')),
-                    DropdownMenuItem(value: 1, child: Text('Fan (Spinning)')),
+                    DropdownMenuItem(value: 0, child: Text('Light')),
+                    DropdownMenuItem(value: 1, child: Text('Fan')),
                     DropdownMenuItem(value: 2, child: Text('Power Socket')),
                     DropdownMenuItem(value: 3, child: Text('General Switch')),
                   ],

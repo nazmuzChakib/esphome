@@ -44,10 +44,10 @@ class NodesNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     ConnectionManager? connectionManager,
     LocalCacheService? localCache,
     UdpDiscoveryService? udpDiscovery,
-  })  : _connectionManager = connectionManager,
-        _localCache = localCache,
-        _udpDiscovery = udpDiscovery,
-        super(_getCachedNodesSync()) {
+  }) : _connectionManager = connectionManager,
+       _localCache = localCache,
+       _udpDiscovery = udpDiscovery,
+       super(_getCachedNodesSync()) {
     _initNotifier();
   }
 
@@ -153,8 +153,9 @@ class NodesNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     final cleanMac = mac.replaceAll(':', '').toUpperCase();
 
     state = state.map((node) {
-      final nodeCleanMac =
-          (node['mac'] as String? ?? '').replaceAll(':', '').toUpperCase();
+      final nodeCleanMac = (node['mac'] as String? ?? '')
+          .replaceAll(':', '')
+          .toUpperCase();
       if (nodeCleanMac == cleanMac) {
         return {
           ...node,
@@ -672,7 +673,6 @@ class NodesNotifier extends StateNotifier<List<Map<String, dynamic>>> {
         payload: payload,
         apiKey: apiKey,
       );
-
     }
   }
 

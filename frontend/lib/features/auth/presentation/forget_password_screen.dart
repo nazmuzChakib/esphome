@@ -1,15 +1,18 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../data/auth_provider.dart';
 
-class ForgetPasswordScreen extends StatefulWidget {
+class ForgetPasswordScreen extends ConsumerStatefulWidget {
   const ForgetPasswordScreen({super.key});
 
   @override
-  State<ForgetPasswordScreen> createState() => _ForgetPasswordScreenState();
+  ConsumerState<ForgetPasswordScreen> createState() =>
+      _ForgetPasswordScreenState();
 }
 
-class _ForgetPasswordScreenState extends State<ForgetPasswordScreen> {
+class _ForgetPasswordScreenState extends ConsumerState<ForgetPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
   bool _isSuccess = false;
@@ -20,11 +23,16 @@ class _ForgetPasswordScreenState extends State<ForgetPasswordScreen> {
     super.dispose();
   }
 
-  void _handleReset() {
+  void _handleReset() async {
     if (_formKey.currentState?.validate() ?? false) {
-      setState(() {
-        _isSuccess = true;
-      });
+      final success = await ref
+          .read(authProvider.notifier)
+          .resetPassword(_emailController.text.trim(), context: context);
+      if (mounted) {
+        setState(() {
+          _isSuccess = success;
+        });
+      }
     }
   }
 

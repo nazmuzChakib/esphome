@@ -8,6 +8,8 @@ AppIcons/
 .agents/
 release_note.md
 client_build_deploy_report.md
+utils/cripto
+utils/tools/__pycache__
 
 # ESPHome & Embedded C++ / Arduino Ignores
 *.hex

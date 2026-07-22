@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../data/auth_provider.dart';
-import '../../../core/widgets/custom_toast.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -87,27 +86,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (_formKey.currentState?.validate() ?? false) {
       final success = await ref
           .read(authProvider.notifier)
-          .login(_emailController.text.trim(), _passwordController.text.trim());
-      if (mounted) {
-        if (success) {
-          GlassToast.show(
-            context,
-            icon: const Icon(Icons.check_circle_outline, color: Colors.green),
-            color: Colors.green,
-            message: 'Successfully logged in!',
-            behave: ToastBehavior.success,
+          .login(
+            _emailController.text.trim(),
+            _passwordController.text.trim(),
+            context: context,
           );
-          context.go('/dashboard');
-        } else {
-          final error = ref.read(authProvider).error ?? 'Login failed';
-          GlassToast.show(
-            context,
-            icon: const Icon(Icons.error_outline, color: Colors.redAccent),
-            color: Colors.redAccent,
-            message: error,
-            behave: ToastBehavior.error,
-          );
-        }
+      if (mounted && success) {
+        context.go('/dashboard');
       }
     }
   }
@@ -378,7 +363,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                       : () async {
                                           final success = await ref
                                               .read(authProvider.notifier)
-                                              .loginWithGoogle();
+                                              .loginWithGoogle(context: context);
                                           if (success && mounted) {
                                             context.go('/dashboard');
                                           }

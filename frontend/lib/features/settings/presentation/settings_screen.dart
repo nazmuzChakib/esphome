@@ -739,6 +739,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                   onTap: () =>
                                       context.push('/settings/db-inspector'),
                                 ),
+                                const Divider(
+                                  height: 1,
+                                  indent: 16,
+                                  endIndent: 16,
+                                ),
+                                ListTile(
+                                  leading: const Icon(
+                                    Icons.terminal_rounded,
+                                    color: Color(0xFF6366F1),
+                                  ),
+                                  title: Text(
+                                    'Debug Data Monitor',
+                                    style: GoogleFonts.outfit(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  subtitle: const Text(
+                                    'Live terminal-style raw data stream for WS, HTTP & UDP',
+                                  ),
+                                  trailing: const Icon(
+                                    Icons.arrow_forward_ios_rounded,
+                                    size: 14,
+                                  ),
+                                  onTap: () =>
+                                      context.push('/settings/debug-monitor'),
+                                ),
                               ],
                             ),
                           ),
@@ -1305,7 +1331,7 @@ class _UpdateCheckingDialog extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Connecting to GitHub...',
+                  'Connecting...',
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     color: isDark ? Colors.white60 : Colors.black54,

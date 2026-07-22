@@ -8,11 +8,11 @@ import '../../features/dashboard/presentation/dashboard_screen.dart';
 import '../../features/control/presentation/node_control_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/settings/presentation/security_settings_screen.dart';
-import '../../features/settings/presentation/bulk_rules_screen.dart';
+import '../../features/settings/presentation/global_rules_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/admin/presentation/access_control_screen.dart';
 import '../../features/settings/presentation/database_inspector_screen.dart';
-
+import '../../features/settings/presentation/debug_monitor_screen.dart';
 
 final GoRouter appRouter = GoRouter(
   initialLocation: '/splash',
@@ -77,6 +77,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/settings/db-inspector',
       builder: (context, state) => const DatabaseInspectorScreen(),
+    ),
+    GoRoute(
+      path: '/settings/debug-monitor',
+      builder: (context, state) => const DebugMonitorScreen(),
     ),
   ],
 );
