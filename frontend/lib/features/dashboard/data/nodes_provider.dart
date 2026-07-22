@@ -25,18 +25,29 @@ import 'package:firebase_database/firebase_database.dart';
 // ============================================================================
 
 import '../../../core/cache/cache_keys.dart';
+import '../../../core/cache/local_cache_service.dart';
 import '../../../core/network/connection_manager.dart';
+import '../../../core/network/udp_discovery_service.dart';
 
 class NodesNotifier extends StateNotifier<List<Map<String, dynamic>>> {
   final ConnectionManager? _connectionManager;
+  final LocalCacheService? _localCache;
+  final UdpDiscoveryService? _udpDiscovery;
   final Random _random = Random();
 
   late Box _rulesBox;
   bool _isInitialized = false;
+  StreamSubscription? _payloadSubscription;
+  StreamSubscription? _discoverySubscription;
 
-  NodesNotifier({ConnectionManager? connectionManager})
-    : _connectionManager = connectionManager,
-      super(_getCachedNodesSync()) {
+  NodesNotifier({
+    ConnectionManager? connectionManager,
+    LocalCacheService? localCache,
+    UdpDiscoveryService? udpDiscovery,
+  })  : _connectionManager = connectionManager,
+        _localCache = localCache,
+        _udpDiscovery = udpDiscovery,
+        super(_getCachedNodesSync()) {
     _initNotifier();
   }
 
@@ -103,8 +114,64 @@ class NodesNotifier extends StateNotifier<List<Map<String, dynamic>>> {
       }
     });
 
+    // 1. Initialize Local Cache & listen to decrypted incoming payload stream from nodes
+    if (_localCache != null) {
+      await _localCache.init();
+      _payloadSubscription?.cancel();
+      _payloadSubscription = _localCache.onPayloadReceived.listen((data) {
+        final mac = data['mac'] as String?;
+        final pathType = data['pathType'] as String?;
+        final payload = data['payload'];
+        if (mac != null && pathType != null && payload != null) {
+          updateFromRealNodePayload(
+            mac: mac,
+            pathType: pathType,
+            payload: payload,
+          );
+        }
+      });
+    }
+
+    // 2. Initialize UDP Discovery & listen to discovered node beacons
+    if (_udpDiscovery != null) {
+      final existingMacs = state
+          .map((n) => (n['mac'] as String? ?? '').toUpperCase())
+          .where((m) => m.isNotEmpty)
+          .toSet();
+      await _udpDiscovery.init(existingPairedMacs: existingMacs);
+      _discoverySubscription?.cancel();
+      _discoverySubscription = _udpDiscovery.onNodeDiscovered.listen((node) {
+        _handleDiscoveredNode(node.mac, node.ip, node.uptime);
+      });
+    }
+
     // Parallel check internet and sync Firebase with a timeout
     _syncFirebaseNodes();
+  }
+
+  void _handleDiscoveredNode(String mac, String ip, int uptime) {
+    final cleanMac = mac.replaceAll(':', '').toUpperCase();
+
+    state = state.map((node) {
+      final nodeCleanMac =
+          (node['mac'] as String? ?? '').replaceAll(':', '').toUpperCase();
+      if (nodeCleanMac == cleanMac) {
+        return {
+          ...node,
+          'ip': ip.isNotEmpty ? ip : node['ip'],
+          'status': 'local',
+          'uptime': uptime,
+        };
+      }
+      return node;
+    }).toList();
+
+    _saveToCache();
+
+    // Trigger WebSocket connection for newly discovered/updated node
+    if (ip.isNotEmpty && _connectionManager != null) {
+      _connectionManager.connectNodeWebSocket(mac, ip);
+    }
   }
 
   Future<bool> _checkInternetConnection() async {
@@ -850,5 +917,11 @@ class NodesNotifier extends StateNotifier<List<Map<String, dynamic>>> {
 final nodesProvider =
     StateNotifierProvider<NodesNotifier, List<Map<String, dynamic>>>((ref) {
       final connectionManager = ref.watch(connectionManagerProvider);
-      return NodesNotifier(connectionManager: connectionManager);
+      final localCache = ref.watch(localCacheServiceProvider);
+      final udpDiscovery = ref.watch(udpDiscoveryServiceProvider);
+      return NodesNotifier(
+        connectionManager: connectionManager,
+        localCache: localCache,
+        udpDiscovery: udpDiscovery,
+      );
     });

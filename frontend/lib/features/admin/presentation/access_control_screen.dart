@@ -453,7 +453,6 @@ class _AccessControlScreenState extends ConsumerState<AccessControlScreen>
   Widget _buildUsersTab() {
     final theme = Theme.of(context);
     if (_users.isEmpty) {
-
       return Center(
         child: Text(
           'No users found.',
@@ -608,8 +607,8 @@ class _AccessControlScreenState extends ConsumerState<AccessControlScreen>
                                 color: isCurrent
                                     ? theme.primaryColor
                                     : (isApproved
-                                        ? Colors.greenAccent
-                                        : Colors.orange),
+                                          ? Colors.greenAccent
+                                          : Colors.orange),
                               ),
                               const SizedBox(width: 6),
                               Flexible(
@@ -635,7 +634,9 @@ class _AccessControlScreenState extends ConsumerState<AccessControlScreen>
                                     color: theme.primaryColor.withOpacity(0.15),
                                     borderRadius: BorderRadius.circular(6),
                                     border: Border.all(
-                                      color: theme.primaryColor.withOpacity(0.5),
+                                      color: theme.primaryColor.withOpacity(
+                                        0.5,
+                                      ),
                                       width: 0.8,
                                     ),
                                   ),
@@ -716,7 +717,6 @@ class _AccessControlScreenState extends ConsumerState<AccessControlScreen>
                                             'Active device cannot be removed. Please log out to unregister.',
                                         behave: ToastBehavior.warning,
                                       );
-
                                     }
                                   : () async {
                                       final confirm = await showDialog<bool>(
@@ -774,7 +774,6 @@ class _AccessControlScreenState extends ConsumerState<AccessControlScreen>
                 }),
             ],
           ),
-
         );
       },
     );
@@ -806,7 +805,6 @@ class _AccessControlScreenState extends ConsumerState<AccessControlScreen>
         ],
       );
     }
-
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),

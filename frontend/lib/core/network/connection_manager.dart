@@ -23,7 +23,11 @@ class ConnectionManager {
   ConnectionManager(this._nodeSecurity, this._localCache);
 
   /// Ensure WebSocket connection to a specific ESP32 node
-  Future<bool> connectNodeWebSocket(String mac, String ip, {String? apiKey}) async {
+  Future<bool> connectNodeWebSocket(
+    String mac,
+    String ip, {
+    String? apiKey,
+  }) async {
     if (ip.isEmpty) return false;
     if (_wsConnectedStatus[mac] == true && _wsChannels.containsKey(mac)) {
       return true;
@@ -48,6 +52,14 @@ class ConnectionManager {
           _closeWsSession(mac);
         },
       );
+
+      // Send initial SYNC request frame to pull current states & configuration from node
+      final syncFrame = _nodeSecurity.createEncryptedFrame(
+        payload: {'path': 'sync', 'action': 'SYNC'},
+        targetMac: mac,
+        apiKey: apiKey,
+      );
+      channel.sink.add(syncFrame);
 
       // On successful WS connection, replay any pending offline commands for this node
       _flushOfflineQueueForNode(mac);
@@ -140,7 +152,6 @@ class ConnectionManager {
     return false;
   }
 
-
   Future<bool> _sendHttpFallback({
     required String ip,
     required String frame,
@@ -176,6 +187,9 @@ class ConnectionManager {
         );
         if (!sent) {
           remaining.add(cmd);
+        } else {
+          // Add a 200ms pacing delay between queued command sends to protect ESP32 EventBus buffer from overflowing
+          await Future.delayed(const Duration(milliseconds: 200));
         }
       } else {
         remaining.add(cmd);

@@ -61,7 +61,35 @@ bool AppNetworkManager::begin() {
     });
     _server.addHandler(&_ws);
 
-    // 4. Register WiFiManager internal API routes (/api/*)
+    // 4. Register HTTP Fallback API Route (/api/set-state)
+    _server.on("/api/set-state", HTTP_POST, 
+        [](AsyncWebServerRequest* request) {
+            request->send(200, "text/plain", "OK");
+        },
+        nullptr,
+        [](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
+            if (len > 0) {
+                char* msg = (char*)malloc(len + 1);
+                if (msg != nullptr) {
+                    memcpy(msg, data, len);
+                    msg[len] = '\0';
+                    
+                    if (strchr(msg, ':') != nullptr) {
+                        AppEvent ev;
+                        ev.type = EVENT_NETWORK_COMMAND;
+                        ev.timestamp = millis();
+                        strncpy(ev.payload.network.command, msg, sizeof(ev.payload.network.command) - 1);
+                        ev.payload.network.command[sizeof(ev.payload.network.command) - 1] = '\0';
+                        
+                        EventBus::getInstance().pushEvent(ev, false);
+                    }
+                    free(msg);
+                }
+            }
+        }
+    );
+
+    // 5. Register WiFiManager internal API routes (/api/*)
     _wm.registerApiRoutes(_server);
 
     // 5. Initialize NTP Sync (GMT+6)
