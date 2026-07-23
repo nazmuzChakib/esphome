@@ -20,6 +20,7 @@ import '../../../core/utils/sensor_registry.dart';
 import '../../auth/data/auth_provider.dart';
 import '../../control/data/node_permission_service.dart';
 import 'package:firebase_database/firebase_database.dart';
+import '../../../core/network/udp_discovery_service.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -40,6 +41,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   bool _isScrolled = false;
   bool _isUpdateDialogShowing = false;
 
+  StreamSubscription<DiscoveredNode>? _discoverySub;
+  final Set<String> _promptedMacs = {};
+
   @override
   void initState() {
     super.initState();
@@ -52,6 +56,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           _currentDateTime = DateTime.now();
         });
       }
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final udpService = ref.read(udpDiscoveryServiceProvider);
+      _discoverySub?.cancel();
+      _discoverySub = udpService.onNodeDiscovered.listen((node) {
+        if (mounted) {
+          _handleNewDiscoveredNodePopup(node);
+        }
+      });
     });
 
     // Delay connection check: give Firebase SDK 5 seconds to establish connection
@@ -87,6 +102,265 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         checks++;
       }
     });
+  }
+
+  void _handleNewDiscoveredNodePopup(DiscoveredNode node) {
+    final cleanMac = node.mac.replaceAll(':', '').toUpperCase();
+    final existingNodes = ref.read(nodesProvider);
+    final isAlreadyAdded = existingNodes.any(
+      (n) =>
+          (n['mac'] as String? ?? '').replaceAll(':', '').toUpperCase() ==
+          cleanMac,
+    );
+
+    if (isAlreadyAdded || _promptedMacs.contains(cleanMac)) {
+      return;
+    }
+    _promptedMacs.add(cleanMac);
+
+    final apiKeyController = TextEditingController(text: 'ESPHome_sec_node');
+    final nameController = TextEditingController();
+    bool isAdvancedExpanded = false;
+
+    GlassDialog.show(
+      context,
+      title: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.wifi_find_rounded,
+            color: Colors.blueAccent,
+            size: 24,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'New Node Discovered!',
+            style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+      content: StatefulBuilder(
+        builder: (context, setDialogState) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          final mac4 = cleanMac.length >= 4
+              ? cleanMac.substring(cleanMac.length - 4)
+              : cleanMac;
+
+          return SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'A new ESP32 node was detected on your local Wi-Fi network.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? Colors.white.withOpacity(0.05)
+                        : Colors.black.withOpacity(0.03),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isDark
+                          ? Colors.white.withOpacity(0.1)
+                          : Colors.black.withOpacity(0.06),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'MAC Address:',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          Text(
+                            node.mac,
+                            style: GoogleFonts.outfit(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'IP Address:',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          Text(
+                            node.ip,
+                            style: GoogleFonts.outfit(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                InkWell(
+                  onTap: () {
+                    setDialogState(() {
+                      isAdvancedExpanded = !isAdvancedExpanded;
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 6,
+                      horizontal: 4,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.tune_rounded,
+                              size: 16,
+                              color: Theme.of(context).primaryColor,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Advanced Settings',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).primaryColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Icon(
+                          isAdvancedExpanded
+                              ? Icons.keyboard_arrow_up_rounded
+                              : Icons.keyboard_arrow_down_rounded,
+                          size: 20,
+                          color: Theme.of(context).primaryColor,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (isAdvancedExpanded) ...[
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: nameController,
+                    style: GoogleFonts.inter(fontSize: 13),
+                    decoration: InputDecoration(
+                      labelText: 'Node Name (Optional)',
+                      hintText: 'ESP32 Node ($mac4)',
+                      prefixIcon: const Icon(Icons.label_outline, size: 18),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: apiKeyController,
+                    style: GoogleFonts.inter(fontSize: 13),
+                    decoration: InputDecoration(
+                      labelText: 'Custom API Key',
+                      hintText: 'ESPHome_sec_node',
+                      prefixIcon: const Icon(Icons.key_rounded, size: 18),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          );
+        },
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('Ignore', style: GoogleFonts.outfit(color: Colors.grey)),
+        ),
+        ElevatedButton(
+          onPressed: () async {
+            Navigator.pop(context);
+            final customKey = apiKeyController.text.trim();
+            final customName = nameController.text.trim();
+
+            final success = ref
+                .read(nodesProvider.notifier)
+                .addDiscoveredNode(
+                  mac: node.mac,
+                  ip: node.ip,
+                  apiKey: customKey.isNotEmpty ? customKey : 'ESPHome_sec_node',
+                  name: customName,
+                );
+
+            if (success && mounted) {
+              final auth = ref.read(authProvider);
+              if (auth.role == 'admin') {
+                GlassToast.show(
+                  context,
+                  icon: const Icon(
+                    Icons.check_circle_outline,
+                    color: Colors.green,
+                  ),
+                  color: Colors.green,
+                  message: 'Node added successfully!',
+                  behave: ToastBehavior.success,
+                );
+              } else {
+                GlassToast.show(
+                  context,
+                  icon: const Icon(
+                    Icons.lock_clock_rounded,
+                    color: Colors.orangeAccent,
+                  ),
+                  color: Colors.orange,
+                  message:
+                      'Node added. Pending Admin approval for full control.',
+                  behave: ToastBehavior.info,
+                );
+              }
+            }
+          },
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          child: Text(
+            'Add Node',
+            style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+          ),
+        ),
+      ],
+    );
   }
 
   void _onScroll() {
@@ -194,6 +468,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   @override
   void dispose() {
+    _discoverySub?.cancel();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _clockTimer?.cancel();

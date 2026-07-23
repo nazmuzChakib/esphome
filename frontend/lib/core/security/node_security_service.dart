@@ -5,7 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:encrypt/encrypt.dart' as encrypt;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-const String kDefaultApiKey = 'esphome_secure_default_key_2026';
+const String kDefaultApiKey = 'ESPHome_sec_node';
 
 final nodeSecurityServiceProvider = Provider<NodeSecurityService>((ref) {
   return NodeSecurityService();
@@ -71,7 +71,6 @@ class NodeSecurityService {
   }
 
   /// Decrypt formatted frame "[Timestamp]:[Base64(IV || Ciphertext)]" back into `Map<String, dynamic>`
-
   Map<String, dynamic>? decryptEncryptedFrame({
     required String frame,
     String? apiKey,
@@ -116,14 +115,20 @@ class NodeSecurityService {
         encrypt.Encrypted(cipherBytes),
         iv: iv,
       );
-      final decoded = jsonDecode(decryptedStr);
-      if (decoded is Map<String, dynamic>) {
-        return decoded;
+
+      try {
+        final decoded = jsonDecode(decryptedStr);
+        if (decoded is Map<String, dynamic>) {
+          return decoded;
+        }
+        if (decoded is Map) {
+          return Map<String, dynamic>.from(decoded);
+        }
+      } catch (_) {
+        // Non-JSON plain text frame (e.g. ESPHOME_REPLY:192.168.1.100:AA:BB:CC:DD:EE:FF:1234)
+        return {'raw': decryptedStr};
       }
-      if (decoded is Map) {
-        return Map<String, dynamic>.from(decoded);
-      }
-      return null;
+      return {'raw': decryptedStr};
     } catch (_) {
       return null;
     }

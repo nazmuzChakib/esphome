@@ -230,19 +230,21 @@ bool CryptoHelper::verifyAndDecrypt(const String& base64Payload, const String& t
         return false;
     }
 
-    // 3. Identity Verification (mac4 check)
-    String expectedMac4 = getDeviceMac4();
-    String expectedMac4Upper = expectedMac4;
-    expectedMac4Upper.toUpperCase();
-    String expectedMac4Lower = expectedMac4;
-    expectedMac4Lower.toLowerCase();
+    // 3. Identity Verification (mac4 check - enforced only when mac4 is present in payload)
+    if (plainText.indexOf("\"mac4\"") != -1) {
+        String expectedMac4 = getDeviceMac4();
+        String expectedMac4Upper = expectedMac4;
+        expectedMac4Upper.toUpperCase();
+        String expectedMac4Lower = expectedMac4;
+        expectedMac4Lower.toLowerCase();
 
-    String matchStrUpper = "\"mac4\":\"" + expectedMac4Upper + "\"";
-    String matchStrLower = "\"mac4\":\"" + expectedMac4Lower + "\"";
+        String matchStrUpper = "\"mac4\":\"" + expectedMac4Upper + "\"";
+        String matchStrLower = "\"mac4\":\"" + expectedMac4Lower + "\"";
 
-    if (plainText.indexOf(matchStrUpper) == -1 && plainText.indexOf(matchStrLower) == -1) {
-        Serial.printf("[CRYPTO] Identity Rejected: Payload mac4 does not target this node (%s)!\n", expectedMac4Upper.c_str());
-        return false;
+        if (plainText.indexOf(matchStrUpper) == -1 && plainText.indexOf(matchStrLower) == -1) {
+            Serial.printf("[CRYPTO] Identity Rejected: Payload mac4 does not target this node (%s)!\n", expectedMac4Upper.c_str());
+            return false;
+        }
     }
 
     outPlainText = plainText;

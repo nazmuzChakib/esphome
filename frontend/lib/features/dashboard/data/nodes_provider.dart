@@ -175,6 +175,53 @@ class NodesNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     }
   }
 
+  bool addDiscoveredNode({
+    required String mac,
+    required String ip,
+    String? apiKey,
+    String? name,
+  }) {
+    final cleanMac = mac.replaceAll(':', '').toUpperCase();
+    final exists = state.any(
+      (n) =>
+          (n['mac'] as String? ?? '').replaceAll(':', '').toUpperCase() ==
+          cleanMac,
+    );
+    if (exists) return false;
+
+    final mac4 = cleanMac.length >= 4
+        ? cleanMac.substring(cleanMac.length - 4)
+        : cleanMac;
+    final effectiveApiKey = (apiKey != null && apiKey.trim().isNotEmpty)
+        ? apiKey.trim()
+        : 'ESPHome_sec_node';
+
+    final newNode = <String, dynamic>{
+      'name': (name != null && name.trim().isNotEmpty)
+          ? name.trim()
+          : 'ESP32 Node ($mac4)',
+      'mac': mac,
+      'mac4': mac4,
+      'ip': ip,
+      'apiKey': effectiveApiKey,
+      'status': 'local',
+      'temp': 0.0,
+      'humi': 0.0,
+      'tempHistory': <double>[],
+      'sensors': <String>['temperature', 'humidity'],
+      'sensorReadings': <String, dynamic>{},
+      'loads': <Map<String, dynamic>>[],
+    };
+
+    state = [...state, newNode];
+    _saveToCache();
+
+    if (ip.isNotEmpty && _connectionManager != null) {
+      _connectionManager.connectNodeWebSocket(mac, ip);
+    }
+    return true;
+  }
+
   Future<bool> _checkInternetConnection() async {
     if (kIsWeb) return true;
     try {

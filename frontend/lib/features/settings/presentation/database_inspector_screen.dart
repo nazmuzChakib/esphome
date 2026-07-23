@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../../core/security/firebase_encryption_service.dart';
+import '../../../core/security/node_security_service.dart';
 import '../../../core/widgets/app_background.dart';
 import '../../../core/widgets/glass_container.dart';
 
@@ -68,6 +70,7 @@ class _DatabaseInspectorScreenState
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final encService = ref.watch(firebaseEncryptionServiceProvider);
+    final nodeSecurity = ref.watch(nodeSecurityServiceProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -196,7 +199,12 @@ class _DatabaseInspectorScreenState
                                     const SizedBox(height: 8),
                                     const Divider(),
                                     const SizedBox(height: 8),
-                                    _buildValueDisplay(val, encService, isDark),
+                                    _buildValueDisplay(
+                                      val,
+                                      encService,
+                                      nodeSecurity,
+                                      isDark,
+                                    ),
                                   ],
                                 ),
                               ),
@@ -215,16 +223,17 @@ class _DatabaseInspectorScreenState
   Widget _buildValueDisplay(
     dynamic value,
     FirebaseEncryptionService encService,
+    NodeSecurityService nodeSecurity,
     bool isDark,
   ) {
     if (value is String) {
-      final decrypted = _tryDecrypt(value, encService);
+      final decrypted = _tryDecrypt(value, encService, nodeSecurity);
       if (decrypted.isNotEmpty) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Encrypted Data:',
+              'Raw Data:',
               style: GoogleFonts.inter(
                 fontSize: 11,
                 color: Colors.grey,
@@ -242,19 +251,21 @@ class _DatabaseInspectorScreenState
             ),
             const SizedBox(height: 8),
             Text(
-              'Decrypted Data:',
+              '🔓 Decrypted Data:',
               style: GoogleFonts.inter(
                 fontSize: 11,
-                color: Colors.green,
+                color: const Color(0xFF10B981),
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 2),
             SelectableText(
               decrypted,
-              style: GoogleFonts.inter(
-                fontSize: 13.5,
-                color: isDark ? Colors.white : Colors.black87,
+              style: GoogleFonts.firaCode(
+                fontSize: 12.5,
+                color: isDark
+                    ? const Color(0xFFA7F3D0)
+                    : const Color(0xFF047857),
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -287,7 +298,12 @@ class _DatabaseInspectorScreenState
                   ),
                 ),
                 Expanded(
-                  child: _buildValueDisplay(entry.value, encService, isDark),
+                  child: _buildValueDisplay(
+                    entry.value,
+                    encService,
+                    nodeSecurity,
+                    isDark,
+                  ),
                 ),
               ],
             ),
@@ -312,7 +328,12 @@ class _DatabaseInspectorScreenState
                   ),
                 ),
                 Expanded(
-                  child: _buildValueDisplay(value[idx], encService, isDark),
+                  child: _buildValueDisplay(
+                    value[idx],
+                    encService,
+                    nodeSecurity,
+                    isDark,
+                  ),
                 ),
               ],
             ),
@@ -330,12 +351,29 @@ class _DatabaseInspectorScreenState
     }
   }
 
-  String _tryDecrypt(String val, FirebaseEncryptionService encService) {
-    if (val.length < 32) return '';
-    try {
-      final decrypted = encService.decryptField(val);
-      if (decrypted != val) return decrypted;
-    } catch (_) {}
+  String _tryDecrypt(
+    String val,
+    FirebaseEncryptionService encService,
+    NodeSecurityService nodeSecurity,
+  ) {
+    if (val.contains(':')) {
+      try {
+        final map = nodeSecurity.decryptEncryptedFrame(
+          frame: val,
+          checkReplayWindow: false,
+        );
+        if (map != null && map.isNotEmpty) {
+          return const JsonEncoder.withIndent('  ').convert(map);
+        }
+      } catch (_) {}
+    }
+
+    if (val.length >= 32) {
+      try {
+        final decrypted = encService.decryptField(val);
+        if (decrypted != val) return decrypted;
+      } catch (_) {}
+    }
     return '';
   }
 }

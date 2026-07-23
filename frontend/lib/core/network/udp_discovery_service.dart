@@ -141,8 +141,19 @@ class UdpDiscoveryService {
           frame: rawStr,
           checkReplayWindow: false,
         );
-        if (decrypted != null && decrypted.containsKey('raw')) {
-          decryptedMsg = decrypted['raw'].toString();
+        if (decrypted != null) {
+          if (decrypted.containsKey('cmd') &&
+              decrypted['cmd'] == 'ESPHOME_QUERY') {
+            // Self-loopback query packet from local app socket broadcast. Ignore.
+            return;
+          }
+          if (decrypted.containsKey('raw')) {
+            decryptedMsg = decrypted['raw'].toString();
+            if (decryptedMsg.contains('ESPHOME_QUERY')) {
+              // Self-loopback query
+              return;
+            }
+          }
         }
       }
 
@@ -151,8 +162,11 @@ class UdpDiscoveryService {
         final parts = decryptedMsg.split(':');
         if (parts.length >= 4) {
           final ip = parts[1].isNotEmpty ? parts[1] : senderIp;
-          final mac = parts[2].toUpperCase();
-          final uptime = int.tryParse(parts[3]) ?? 0;
+          final mac = parts
+              .sublist(2, parts.length - 1)
+              .join(':')
+              .toUpperCase();
+          final uptime = int.tryParse(parts.last) ?? 0;
 
           final node = DiscoveredNode(
             ip: ip,
@@ -209,9 +223,54 @@ class UdpDiscoveryService {
     });
   }
 
+  /// Check if device is connected to a WiFi / LAN network
+  Future<bool> _isWifiConnected() async {
+    try {
+      final interfaces = await NetworkInterface.list(
+        includeLoopback: false,
+        type: InternetAddressType.IPv4,
+      );
+      for (final interface in interfaces) {
+        final name = interface.name.toLowerCase();
+        final isWifiInterface =
+            name.contains('wlan') ||
+            name.contains('wifi') ||
+            name.contains('en') ||
+            name.contains('eth');
+
+        for (final addr in interface.addresses) {
+          if (!addr.isLoopback && addr.address != '0.0.0.0') {
+            final ip = addr.address;
+            final isPrivateIp =
+                ip.startsWith('192.168.') ||
+                ip.startsWith('10.') ||
+                RegExp(r'^172\.(1[6-9]|2[0-9]|3[0-1])\.').hasMatch(ip);
+
+            if (isWifiInterface || isPrivateIp) {
+              return true;
+            }
+          }
+        }
+      }
+    } catch (_) {}
+    return false;
+  }
+
   /// Broadcast ESPHOME_QUERY encrypted search packet on port 4210
-  void sendDiscoveryQuery() {
+  Future<void> sendDiscoveryQuery() async {
     if (_socket == null) return;
+
+    final wifiConnected = await _isWifiConnected();
+    if (!wifiConnected) {
+      DebugLogger.log(
+        source: 'UDP',
+        direction: 'INTERNAL',
+        payload: 'UDP Discovery skipped: WiFi network not connected',
+        level: LogLevel.warning,
+      );
+      return;
+    }
+
     try {
       final queryFrame = _nodeSecurity.createEncryptedFrame(
         payload: {'cmd': 'ESPHOME_QUERY'},

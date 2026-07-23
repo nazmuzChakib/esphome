@@ -15,6 +15,9 @@ const unsigned long HEAP_PRINT_INTERVAL = 10000; // 10 seconds
 // Test switch instance
 SwitchHandler* switchRoom = NULL;
 
+// Stress test control flag (0 = disabled on boot, 1 = enabled)
+bool g_enableStressTest = false;
+
 void runCryptoParityTest() {
     Serial.println(F("\n--- [CRYPTO_TEST] Starting Crypto Parity Validation ---"));
     
@@ -113,6 +116,27 @@ void handleSystemSerialCommand(const String& cmd) {
     } 
     else if (command == "TESTCRYPTO") {
         runCryptoParityTest();
+    }
+    else if (command.startsWith("RUN_STRESS_TEST") || command.startsWith("STRESS_TEST") || command.startsWith("run_stress_test")) {
+        int flagVal = -1;
+        int spaceIdx = command.indexOf(' ');
+        if (spaceIdx != -1) {
+            flagVal = command.substring(spaceIdx + 1).toInt();
+        }
+        if (flagVal == 1) {
+            g_enableStressTest = true;
+            Serial.println(F("[STRESS_TEST] Flag set to 1. Executing Event Bus Stress Test..."));
+            runEventBusStressTest();
+        } else if (flagVal == 0) {
+            g_enableStressTest = false;
+            Serial.println(F("[STRESS_TEST] Flag set to 0. Stress test disabled on boot."));
+        } else {
+            g_enableStressTest = !g_enableStressTest;
+            Serial.printf("[STRESS_TEST] Toggled stress test flag to %d.\n", g_enableStressTest ? 1 : 0);
+            if (g_enableStressTest) {
+                runEventBusStressTest();
+            }
+        }
     }
     else if (command.startsWith("SET_HYSTERESIS ")) {
         String valStr = command.substring(15);
@@ -239,8 +263,12 @@ void setup() {
     // Print active registrations list
     HardwareManager::getInstance().printRegistrations();
 
-    // 6. Run Event Bus Stress Test (overflow check)
-    runEventBusStressTest();
+    // 6. Run Event Bus Stress Test (overflow check if flag enabled)
+    if (g_enableStressTest) {
+        runEventBusStressTest();
+    } else {
+        Serial.println(F("[MAIN] Event bus stress test skipped on boot (Flag g_enableStressTest = 0). Use command 'SYS: run_stress_test 1' or 'SYS: STRESS_TEST 1' to enable/run."));
+    }
 
     // 7. Test Coalesced Delayed Saves (scheduling saves)
     Serial.println(F("[MAIN] Triggering coalesced writes for loads.json and states.json..."));

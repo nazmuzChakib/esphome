@@ -167,9 +167,9 @@ void AppNetworkManager::onAPStopped() {
 }
 
 void AppNetworkManager::checkUDPDiscovery() {
-    if (!_timeSynced) {
-        return; // Reject discovery queries when time is not synced yet
-    }
+    // if (!_timeSynced) {
+    //     return; // Reject discovery queries when time is not synced yet
+    // }
 
     int packetSize = _udp.parsePacket();
     if (packetSize > 0) {
@@ -212,9 +212,9 @@ void AppNetworkManager::checkUDPDiscovery() {
 }
 
 void AppNetworkManager::sendDiscoveryBeacon() {
-    if (!_timeSynced) {
-        return; // Skip discovery broadcast to prevent replay window before NTP sync
-    }
+    // if (!_timeSynced) {
+    //     return; // Skip discovery broadcast to prevent replay window before NTP sync
+    // }
 
     int activeWsClients = _ws.count();
     unsigned long interval = (activeWsClients > 0) ? 60000UL : 15000UL;

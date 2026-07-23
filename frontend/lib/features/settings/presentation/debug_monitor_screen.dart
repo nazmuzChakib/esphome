@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -5,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/network/debug_log_service.dart';
+import '../../../core/security/node_security_service.dart';
 import '../../../core/widgets/app_background.dart';
 import '../../../core/widgets/custom_toast.dart';
 import '../../../core/widgets/glass_container.dart';
@@ -22,6 +24,7 @@ class _DebugMonitorScreenState extends ConsumerState<DebugMonitorScreen> {
 
   String _selectedSource = 'ALL';
   bool _autoScroll = true;
+  bool _autoDecrypt = true;
   String _searchQuery = '';
 
   @override
@@ -156,6 +159,27 @@ class _DebugMonitorScreenState extends ConsumerState<DebugMonitorScreen> {
               ),
             ),
             actions: [
+              // Auto decrypt toggle
+              IconButton(
+                tooltip: _autoDecrypt ? 'Auto-Decrypt On' : 'Auto-Decrypt Off',
+                icon: Icon(
+                  _autoDecrypt
+                      ? Icons.lock_open_rounded
+                      : Icons.lock_outline_rounded,
+                  color: _autoDecrypt
+                      ? const Color(0xFF10B981)
+                      : (isDark ? Colors.white54 : Colors.black45),
+                ),
+                onPressed: () {
+                  setState(() => _autoDecrypt = !_autoDecrypt);
+                  AppToast.info(
+                    context,
+                    message: _autoDecrypt
+                        ? 'Auto-decryption enabled'
+                        : 'Auto-decryption disabled',
+                  );
+                },
+              ),
               // Auto scroll toggle
               IconButton(
                 tooltip: _autoScroll
@@ -369,6 +393,22 @@ class _DebugMonitorScreenState extends ConsumerState<DebugMonitorScreen> {
     final sourceColor = _getSourceColor(entry.source);
     final levelColor = _getLevelColor(entry.level);
 
+    // Attempt to decrypt encrypted frame [Timestamp]:[Base64]
+    String? decryptedJsonStr;
+    if (_autoDecrypt && entry.payload.contains(':')) {
+      try {
+        final nodeSecurity = ref.read(nodeSecurityServiceProvider);
+        final decryptedMap = nodeSecurity.decryptEncryptedFrame(
+          frame: entry.payload,
+          checkReplayWindow: false,
+        );
+        if (decryptedMap != null && decryptedMap.isNotEmpty) {
+          const encoder = JsonEncoder.withIndent('  ');
+          decryptedJsonStr = encoder.convert(decryptedMap);
+        }
+      } catch (_) {}
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8.0),
       padding: const EdgeInsets.all(10.0),
@@ -465,6 +505,84 @@ class _DebugMonitorScreenState extends ConsumerState<DebugMonitorScreen> {
                         : const Color(0xFFE2E8F0)),
             ),
           ),
+          // Decrypted Payload Section (if available)
+          if (decryptedJsonStr != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10.0),
+              decoration: BoxDecoration(
+                color: const Color(0xFF064E3B).withOpacity(0.5),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: const Color(0xFF10B981).withOpacity(0.7),
+                  width: 1.0,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.lock_open_rounded,
+                        size: 14,
+                        color: Color(0xFF34D399),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'DECRYPTED PAYLOAD',
+                        style: GoogleFonts.firaCode(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF34D399),
+                        ),
+                      ),
+                      const Spacer(),
+                      InkWell(
+                        onTap: () {
+                          Clipboard.setData(
+                            ClipboardData(text: decryptedJsonStr!),
+                          );
+                          AppToast.success(
+                            context,
+                            message: 'Decrypted JSON copied to clipboard',
+                          );
+                        },
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.copy_rounded,
+                              size: 12,
+                              color: Color(0xFF34D399),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Copy JSON',
+                              style: GoogleFonts.firaCode(
+                                fontSize: 10,
+                                color: const Color(0xFF34D399),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  SelectableText(
+                    decryptedJsonStr,
+                    style: GoogleFonts.firaCode(
+                      fontSize: 12,
+                      height: 1.35,
+                      color: const Color(0xFFA7F3D0),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

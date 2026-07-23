@@ -26,7 +26,7 @@ String decryptPayload(String base64Payload, List<int> keyBytes) {
 }
 
 void main() {
-  const apiKey = "AdaCodecSecretKey";
+  const apiKey = "ESPHome_sec_node";
   const timestamp = "1716900000";
   const payload = "4gdv6Cct+oS5ufPNhABS55JU6qSW2sXuu+Ea7LleVlQSafuqmL/GkUNU3TtFPGpWyq/FHSJ9axUVOy+DTwUBkw==";
 

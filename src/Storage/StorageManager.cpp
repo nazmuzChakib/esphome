@@ -134,7 +134,7 @@ void StorageManager::initDefaultFiles() {
     if (updateSys) {
         Serial.println(F("[STORAGE] system.json needs initialization/update. Writing default system keys & root CA."));
         
-        String apiKey = "AdaCodecSecretKey";
+        String apiKey = "ESPHome_sec_node";
         String plainUser = "@esp_home";
         String plainPass = "password@esp_Home";
         
@@ -182,12 +182,12 @@ String StorageManager::getPrivateKey() {
     String content = readFile("/system.json");
     int keyPos = content.indexOf("\"api_key\":\"");
     if (keyPos == -1) {
-        return String("AdaCodecSecretKey"); // Fallback private key
+        return String("ESPHome_sec_node"); // Fallback private key
     }
     int start = keyPos + 11;
     int end = content.indexOf("\"", start);
     if (end == -1) {
-        return String("AdaCodecSecretKey"); // Fallback
+        return String("ESPHome_sec_node"); // Fallback
     }
     _cachedPrivateKey = content.substring(start, end);
     return _cachedPrivateKey;
